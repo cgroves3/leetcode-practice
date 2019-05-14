@@ -33,7 +33,7 @@ def runDijkstra(graph, startingWord, endWord):
     step_cost = 1.0
     
     if len(graph.keys()) == 0:
-        return []
+        return {endWord: (0, [])}
 
     explored = []
     frontier = [(0, startingWord)]
@@ -78,7 +78,7 @@ def listify(heapList):
 def main():
     beginWord = "hit"
     endWord = "cog"
-    wordList = ["hot","dot","dog","lot","log","cog"]
+    wordList = ["hot","dot","dog","lot","log"]
     graph = genGraphDic(beginWord, endWord, wordList)
     paths = runDijkstra(graph, beginWord, endWord)
     print(paths[endWord][1])
