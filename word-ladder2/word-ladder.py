@@ -29,50 +29,127 @@ def genGraphDic(startWord, endWord, wordList):
             graph[word] = getConnectedWords(word, wL_cpy)
     return graph
 
-def runDijkstra(graph, startingWord, endWord):
+# def runDijkstra(graph, startingWord, endWord):
+#     step_cost = 1.0
+    
+#     if len(graph.keys()) == 0:
+#         return {endWord: [0, []]}
+
+#     explored = []
+#     frontier = [(0, startingWord)]
+#     paths = {startingWord: [-1, [[]]]}
+#     while True:
+#         nodeTup = heapq.heappop(frontier)
+#         node = nodeTup[1]
+        
+#         # Get path node
+#         pathList = paths[node][1]
+#         for path_list in pathList: 
+#             path_list.append(node)
+#         paths[node][0] += step_cost
+#         pathCostTuple = paths[node]
+
+#         explored.append(node)
+#         if node == endWord:
+#             return paths
+
+#         neighbors = graph[node]
+#         for neighbor in neighbors:
+#             if not(neighbor in explored):
+#                 if not(neighbor in listify(frontier)):
+#                     pathsListCpy = []
+#                     for pL in pathList:
+#                         pathsListCpy.append(list(pL))
+#                     paths[neighbor] = [pathCostTuple[0], pathsListCpy]
+#                     heapq.heappush(frontier, (pathCostTuple[0] + step_cost, neighbor))
+#                 else:
+#                     #Append paths to path list if the cost is equal to current total cost
+#                     if pathCostTuple[0] == paths[neighbor][0]:
+#                         neighborPathList = paths[neighbor][1]
+#                         for pL in pathList:
+#                             neighborPathList.append(list(pL))
+#         del paths[node]
+
+def runBiDijkstra(graph, startingWord, endWord):
     step_cost = 1.0
     
     if len(graph.keys()) == 0:
         return {endWord: [0, []]}
 
-    explored = []
-    frontier = [(0, startingWord)]
-    paths = {startingWord: [-1, [[]]]}
+    startGoalExplored = []
+    startGoalFrontier = [(0, startingWord)]
+    startGoalPaths = {startingWord: [-1, [[]]]}
+
+    goalStartExplored = []
+    goalStartFrontier = [(0, endWord)]
+    goalStartPaths = {endWord: [-1, [[]]]}
+
     while True:
-        nodeTup = heapq.heappop(frontier)
-        node = nodeTup[1]
+        startGoalNodeTup = heapq.heappop(startGoalFrontier)
+        startGoalNode = startGoalNodeTup[1]
+
+        goalStartNodeTup = heapq.heappop(goalStartFrontier)
+        goalStartNode = goalStartNodeTup[1]
         
         # Get path node
-        pathList = paths[node][1]
-        for path_list in pathList: 
-            path_list.append(node)
-        paths[node][0] += step_cost
-        pathCostTuple = paths[node]
+        startGoalPathList = addNodeToPath(startGoalPaths, startGoalNode, step_cost)
+        startGoalPathCostTuple = startGoalPaths[startGoalNode]
 
-        explored.append(node)
-        if node == endWord:
-            return paths
 
-        neighbors = graph[node]
-        for neighbor in neighbors:
-            if not(neighbor in explored):
-                if not(neighbor in listify(frontier)):
-                    pathsListCpy = []
-                    for pL in pathCostTuple[1]:
-                        pathsListCpy.append(list(pL))
-                    paths[neighbor] = [pathCostTuple[0], pathsListCpy]
-                    heapq.heappush(frontier, (pathCostTuple[0] + step_cost, neighbor))
-                else:
-                    #Append paths to path list if the cost is equal to current total cost
-                    if pathCostTuple[0] == paths[neighbor][0]:
-                        neighborPathList = paths[neighbor][1]
-                        pathsListCpy = []
-                        for pL in neighborPathList:
-                            pathsListCpy.append(list(pL))
-                        for pL in pathList:
-                            pathsListCpy.append(list(pL))
-                        paths[neighbor][1] = pathsListCpy
-        del paths[node]
+        goalStartPathList = addNodeToPath(goalStartPaths, goalStartNode, step_cost)
+        goalStartPathCostTuple = goalStartPaths[goalStartNode]
+
+        startGoalExplored.append(startGoalNode)
+        goalStartExplored.append(goalStartNode)
+
+        if startGoalNode in goalStartExplored or goalStartNode in startGoalExplored:
+            paths = mergePaths(startGoalPaths, goalStartPaths, startGoalNode)
+            return startGoalPaths
+
+        startGoalNeighbors = graph[startGoalNode]
+        unexploredNeighbors = [neighbor for neighbor in startGoalNeighbors if neighbor in startGoalExplored]
+        addNeighbors(unexploredNeighbors, startGoalFrontier, startGoalPathList, startGoalPathCostTuple, startGoalPaths, step_cost, startGoalNode)
+
+        goalStartNeighbors = graph[goalStartNode]
+        unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if neighbor in goalStartExplored]
+        addNeighbors(unexploredNeighbors, goalStartFrontier, goalStartPathList, goalStartPathCostTuple, goalStartPaths, step_cost, goalStartNode)
+        
+
+def addNeighbors(neighbors, startGoalFrontier, startGoalPathList, startGoalPathCostTuple, startGoalPaths, step_cost, startGoalNode):
+    for neighbor in neighbors:
+        if not(neighbor in listify(startGoalFrontier)):
+            pathsListCpy = []
+            for pL in startGoalPathList:
+                pathsListCpy.append(list(pL))
+            startGoalPaths[neighbor] = [startGoalPathCostTuple[0], pathsListCpy]
+            heapq.heappush(startGoalFrontier, (startGoalPathCostTuple[0] + step_cost, neighbor))
+        else:
+            #Append paths to path list if the cost is equal to current total cost
+            if startGoalPathCostTuple[0] == startGoalPaths[neighbor][0]:
+                neighborPathList = startGoalPaths[neighbor][1]
+                for pL in startGoalPathList:
+                    neighborPathList.append(list(pL))
+    del startGoalPaths[startGoalNode]
+
+def mergePaths(paths1, paths2, node1):
+    paths = []
+    path1Tup = paths1[node1]
+    for path1List in path1Tup[1]:
+        for _, path2Tup in paths2.items():
+            for path2List in path2Tup[1]:
+                endingNode = path2List[len(path2List) -1]
+                if endingNode == node1:
+                    path2ListRev = list(path2List)
+                    path2ListRev.reverse()
+                    paths.append([path1Tup[0] + path2Tup[0] , path1List + path2ListRev])
+    return paths
+
+def addNodeToPath(paths, node, step_cost):
+    pathList = paths[node][1]
+    for path_list in pathList: 
+        path_list.append(node)
+    paths[node][0] += step_cost
+    return pathList
 
 def listify(heapList):
     items = []
@@ -83,7 +160,7 @@ def listify(heapList):
 class Solution(object):
     def findLadders(self, beginWord, endWord, wordList):
         graph = genGraphDic(beginWord, endWord, wordList)
-        paths = runDijkstra(graph, beginWord, endWord)
+        paths = runBiDijkstra(graph, beginWord, endWord)
         return paths[endWord][1]
 
 if __name__ == "__main__":
@@ -92,6 +169,7 @@ if __name__ == "__main__":
     endWord = "cog"
     wordList = ["hot","dot","dog","lot","log","cog"]
     # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # print(ladders)
 
     # beginWord = "qa"
     # endWord = "sq"
