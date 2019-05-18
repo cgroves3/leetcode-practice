@@ -1,22 +1,21 @@
 import heapq
-import time
 
-class Path:
-    def __init__(self):
-        self.cost = 0
-        self.nodes = []
+# class Path:
+#     def __init__(self, nodes=[], cost=0):
+#         self.cost = 0
+#         self.nodes = []
     
-    def getLastNode(self):
-        if len(self.nodes) == 0:
-            return None
-        return self.nodes[len(self.nodes) - 1]
+#     def getLastNode(self):
+#         if len(self.nodes) == 0:
+#             return None
+#         return self.nodes[len(self.nodes) - 1]
     
-    def getNodes(self):
-        return self.nodes
+#     def getNodes(self):
+#         return self.nodes
     
-    def addNode(self, node, cost):
-        self.nodes.append(node)
-        self.cost += cost
+#     def addNode(self, node, cost):
+#         self.nodes.append(node)
+#         self.cost += cost
 
 class Graph:
     def __init__(self, startWord, endWord, wordList):
@@ -29,38 +28,33 @@ class Graph:
         if not(endWord in wordList):
             return {}
         
-        if len(getConnectedWords(startWord, wordList)) == 0:
+        if len(self.getConnectedWords(startWord, wordList)) == 0:
             return {}
         
-        graph = { startWord : getConnectedWords(startWord,wordList) }
+        graph = { startWord : self.getConnectedWords(startWord,wordList) }
         for word in wordList:
             if not(word in graph.keys()):
                 wL_cpy = list(wordList)
                 wL_cpy.remove(word)
-                graph[word] = getConnectedWords(word, wL_cpy)
+                graph[word] = self.getConnectedWords(word, wL_cpy)
         return graph
 
     def getEdgeWeight(self, node1, node2):
         nodeTup = self.graph.get(node1, '')
         if not nodeTup == '':
-            for nodeWeightPair in nodeTup:
-                if nodeWeightPair[0] == node2:
-                    return nodeWeightPair[1]
+            return nodeTup.get(node2, 0)
         return 0
 
     def getNeighbors(self, node):
-        neighborList = self.graph.get(node, '')
-        neighbors = []
-        for neighborTup in neighborList:
-            neighbors.append(neighborTup[0])
-        return neighbors
-
-def getConnectedWords(word, wordList):
-    words = []
-    for w in wordList:
-        if getWordDifferenceCount(w, word) == 1:
-            words.append([w, 1])
-    return words
+        neighborDic = self.graph.get(node, '')
+        return neighborDic.keys()
+    
+    def getConnectedWords(self, word, wordList):
+        words = {}
+        for w in wordList:
+            if getWordDifferenceCount(w, word) == 1:
+                words[w] = 1
+        return words
         
 def getWordDifferenceCount(firstWord, secondWord):
     letter_diff_count = 0
@@ -69,10 +63,10 @@ def getWordDifferenceCount(firstWord, secondWord):
             letter_diff_count += 1
     return letter_diff_count
 
-def runDijkstra(graph: Graph, startingWord, endWord):
+def runDijkstra(graph, startingWord, endWord):
     
     if graph is None or graph.isEmpty():
-        return {endWord: [0, []]}
+        return []
 
     explored = []
     frontier = [(0, startingWord)]
@@ -87,25 +81,7 @@ def runDijkstra(graph: Graph, startingWord, endWord):
 
         explored.append(node)
         if node == endWord:
-            return paths
-
-        # neighbors = graph[node]
-        
-        # for neighbor in neighbors:
-        #     if not(neighbor in explored):
-        #         if not(neighbor in listify(frontier)):
-        #             pathsListCpy = []
-        #             for pL in pathList:
-        #                 pathsListCpy.append(list(pL))
-        #             paths[neighbor] = [pathCostTuple[0], pathsListCpy]
-        #             heapq.heappush(frontier, (pathCostTuple[0] + step_cost, neighbor))
-        #         else:
-        #             #Append paths to path list if the cost is equal to current total cost
-        #             if pathCostTuple[0] == paths[neighbor][0]:
-        #                 neighborPathList = paths[neighbor][1]
-        #                 for pL in pathList:
-        #                     neighborPathList.append(list(pL))
-        # del paths[node]
+            return paths[endWord][1]
 
         neighbors = graph.getNeighbors(node)
         unexploredNeighbors = [neighbor for neighbor in neighbors if not(neighbor in explored)]
@@ -124,10 +100,10 @@ def union(paths1, paths2):
     return paths1 + paths2
 
 
-def runBiDijkstra(graph: Graph, startingWord, endWord):
+def runBiDijkstra(graph, startingWord, endWord):
     
     if graph is None or graph.isEmpty():
-        return {endWord: [0, []]}
+        return []
 
     startGoalExplored = []
     startGoalFrontier = [(0, startingWord)]
@@ -145,28 +121,39 @@ def runBiDijkstra(graph: Graph, startingWord, endWord):
         goalStartNode = goalStartNodeTup[1]
         
         # Get path node
-        startGoalPathList = addNodeToPath(graph, startGoalPaths, startGoalNode)
-        startGoalPathCostTuple = startGoalPaths[startGoalNode]
+        # addNodeToPath(graph, startGoalPaths, startGoalNode)
 
+        # addNodeToPath(graph, goalStartPaths, goalStartNode)
 
-        goalStartPathList = addNodeToPath(graph, goalStartPaths, goalStartNode)
-        goalStartPathCostTuple = goalStartPaths[goalStartNode]
+        # startGoalExplored.append(startGoalNode)
+        # goalStartExplored.append(goalStartNode)
 
+        addNodeToPath(graph, startGoalPaths, startGoalNode)
         startGoalExplored.append(startGoalNode)
+
+        if startGoalNode in goalStartExplored:
+            pathsStartGoal = getMinPaths(startGoalPaths, goalStartPaths, startGoalNode)
+            min_cost = pathsStartGoal[0][0]
+            mergedPaths = FullMerge(graph, startGoalPaths, goalStartPaths, startGoalNode, goalStartNode, min_cost)
+            mergedPaths = union(pathsStartGoal, mergedPaths)
+            paths = GetPaths(mergedPaths)
+            return paths
+        
+        addNodeToPath(graph, goalStartPaths, goalStartNode)
         goalStartExplored.append(goalStartNode)
 
-        if startGoalNode in goalStartExplored or goalStartNode in startGoalExplored:
-            pathsStartGoal = mergePaths(startGoalPaths, goalStartPaths, startGoalNode)
-            pathsGoalStart = mergePaths(goalStartPaths, startGoalPaths, goalStartNode)
-            for pathListTup in pathsGoalStart:
-                pathList = pathListTup[1]
-                pathList.reverse()
-            unionPaths = union(pathsStartGoal, pathsGoalStart)
-            mergedFrontierPaths = mergePathsWithFrontier(graph, startGoalPaths, goalStartPaths, startGoalFrontier, goalStartFrontier, unionPaths[0][0])
-            paths = []
-            for costPathTup in union(unionPaths, mergedFrontierPaths):
-                path = costPathTup[1]
-                paths.append(path)
+        if goalStartNode in startGoalExplored:
+            pathsGoalStart = getMinPaths(goalStartPaths, startGoalPaths, goalStartNode)
+            for pathsListTup in pathsGoalStart:
+                path = pathsListTup[1]
+                path.reverse()
+            min_cost = pathsGoalStart[0][0]
+            mergedPaths = FullMerge(graph, goalStartPaths, startGoalPaths, goalStartNode, startGoalNode, min_cost)
+            for pathsListTup in mergedPaths:
+                path = pathsListTup[1]
+                path.reverse()
+            mergedPaths = union(pathsGoalStart, mergedPaths)
+            paths = GetPaths(mergedPaths)
             return paths
 
         startGoalNeighbors = graph.getNeighbors(startGoalNode)
@@ -176,9 +163,23 @@ def runBiDijkstra(graph: Graph, startingWord, endWord):
         goalStartNeighbors = graph.getNeighbors(goalStartNode)
         unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(neighbor in goalStartExplored)]
         addNeighbors(graph, unexploredNeighbors, goalStartFrontier, goalStartPaths, goalStartNode)
-        
 
-def addNeighbors(graph: Graph, neighbors, frontier, paths, node):
+def GetPaths(costPathTups):
+    paths = []
+    for costPathTup in costPathTups:
+        path = costPathTup[1]
+        if path not in paths:
+            paths.append(path)
+    return paths
+
+def FullMerge(graph, startGoalPaths, goalStartPaths, startGoalNode, goalStartNode, min_cost):
+    pathsStartGoal = mergePaths(graph, startGoalPaths, goalStartPaths, startGoalNode, min_cost)
+    # pathsGoalStart = mergePaths(graph, goalStartPaths, startGoalPaths, goalStartNode, min_cost)
+    # unionPaths = union(pathsStartGoal, pathsGoalStart)    
+    mergedFrontierPaths = mergePathsWithFrontier(graph, startGoalPaths, goalStartPaths, min_cost)
+    return union(pathsStartGoal, mergedFrontierPaths)
+        
+def addNeighbors(graph, neighbors, frontier, paths, node):
     pathCostTuple = paths[node]
     pathList = pathCostTuple[1]
     for neighbor in neighbors:
@@ -190,10 +191,8 @@ def addNeighbors(graph: Graph, neighbors, frontier, paths, node):
             heapq.heappush(frontier, (pathCostTuple[0] + graph.getEdgeWeight(node, neighbor), neighbor))
         else:           
             # Append paths to path list if the cost is equal to current total cost
-            # lastNodeOfPath = pathList[0][len(pathList[0])-1]
             neighborPathList = paths[neighbor][1]
             lastNodeOfNeighborPath = neighborPathList[0][len(neighborPathList[0])-1]
-            # if pathCostTuple[0] + graph.getEdgeWeight(lastNodeOfPath, node) == paths[neighbor][0] + graph.getEdgeWeight(node, neighbor):
             if paths[neighbor][0] + graph.getEdgeWeight(lastNodeOfNeighborPath, neighbor) == pathCostTuple[0] + graph.getEdgeWeight(node, neighbor):
                 neighborPathList = paths[neighbor][1]
                 for pL in pathList:
@@ -205,14 +204,20 @@ def intersect(list1, list2):
     intersection = set(list1).intersection(set(list2))
     return list(intersection)
 
-def mergePathsWithFrontier(graph, paths1, paths2, frontier1, frontier2, minPathCost):
+def mergePathsWithFrontier(graph, paths1, paths2, minPathCost):
     paths = []
-    intersection_nodes = intersect(listify(frontier1), listify(frontier2))
+    # intersection_nodes = intersect(listify(frontier1), listify(frontier2))
+    intersection_nodes = intersect(paths1.keys(), paths2.keys())
     for node in intersection_nodes:
         path1Tup = paths1[node]
         path2Tup = paths2[node]
-        
-        path1List = addNodeToPath(graph, paths1, node)
+        path1FirstList = path1Tup[1][0]
+        path2FirstList = path2Tup[1][0]
+        path1List = path1Tup[1]
+        if not node in path1FirstList and node not in path2FirstList:
+            path1List = addNodeToPath(graph, paths1, node)
+        if node in path1FirstList and node in path2FirstList:
+            path1List = RemoveNodeToPath(graph, paths1, node)
         path2List = list(path2Tup[1])
         lastNode = path2List[0][len(path2List[0])-1]
         path2List[0].reverse()
@@ -224,18 +229,37 @@ def mergePathsWithFrontier(graph, paths1, paths2, frontier1, frontier2, minPathC
     return paths
 
 
-def mergePaths(paths1, paths2, node1):
+def getMinPaths(sourcePaths, targetPaths, node):
     paths = []
-    path1Tup = paths1[node1]
-    for path1List in path1Tup[1]:
-        for _, path2Tup in paths2.items():
-            for path2List in path2Tup[1]:
-                endingNode = path2List[len(path2List) -1]
-                if endingNode == node1:
-                    path2ListRev = list(path2List)
-                    path2ListRev.remove(endingNode)
-                    path2ListRev.reverse()
-                    paths.append([path1Tup[0] + path2Tup[0] , list(path1List) + path2ListRev])
+    sourcePathTup = sourcePaths[node]
+    for sourcePathList in sourcePathTup[1]:
+        for _, targetPathTup in targetPaths.items():
+            for targetPathList in targetPathTup[1]:
+                endingNode = targetPathList[len(targetPathList) -1]
+                if endingNode == node:
+                    targetPathListRev = list(targetPathList)
+                    targetPathListRev.remove(endingNode)
+                    targetPathListRev.reverse()
+                    paths.append([sourcePathTup[0] + targetPathTup[0] , list(sourcePathList) + targetPathListRev])
+    return paths
+        
+
+def mergePaths(graph, sourcePaths, targetPaths, node, min_cost):
+    paths = []
+    sourcePathTup = sourcePaths[node]
+    targetPathTup = targetPaths.get(node, None)
+    if targetPathTup != None:
+        targetPathList = targetPathTup[1]
+        for sourcePathList in sourcePathTup[1]:
+            #Handle node on the frontier of paths2
+            for path in targetPathList:
+                targetPathLastNode = path[len(path)-1]
+                targetPathListRev = list(path)
+                if targetPathLastNode == node:
+                    targetPathListRev.remove(targetPathLastNode)
+                if sourcePathTup[0] + targetPathTup[0] + graph.getEdgeWeight(targetPathLastNode, node) == min_cost:
+                    targetPathListRev.reverse()
+                    paths.append([sourcePathTup[0] + targetPathTup[0] + graph.getEdgeWeight(targetPathLastNode, node) , list(sourcePathList) + targetPathListRev])
     return paths
 
 def addNodeToPath(graph, paths, node):
@@ -249,14 +273,17 @@ def addNodeToPath(graph, paths, node):
     paths[node][0] += graph.getEdgeWeight(lastNode, node)
     return pathList
 
-# def addNodeToPath(graph, paths, node):
-#     pathList = paths[node]
-#     for pathCostTuple in pathList: 
-#         lastNode = pathCostTuple[1][len(pathCostTuple[1]) - 1]
-#         path_list.append(node)
-#         pathCostTuple[0] += graph.getEdgeWeight(lastNode, node)
-#     return pathList
-    
+def RemoveNodeToPath(graph, paths, node):
+    pathList = paths[node][1]
+    if len(pathList[0]) == 0:
+        lastNode = ''
+    else:
+        lastNode = pathList[0][len(pathList[0]) - 1]
+    for path_list in pathList: 
+        path_list.remove(node)
+    paths[node][0] -= graph.getEdgeWeight(lastNode, node)
+    return pathList
+
 def listify(heapList):
     items = []
     for tup in heapList:
@@ -266,28 +293,64 @@ def listify(heapList):
 class Solution(object):
     def findLadders(self, beginWord, endWord, wordList):
         graph = Graph(beginWord, endWord, wordList)
-        start = time.clock()
         biPaths = runBiDijkstra(graph, beginWord, endWord)
-        print('Bidirectional Dijkstra time: ', time.clock() - start)
+        return biPaths
 
-        start = time.clock()
-        paths = runDijkstra(graph, beginWord, endWord)
-        print('Dijkstra time: ', time.clock() - start)
-        return paths
+def are_equal(list1, list2):
+    if len(list1) != len(list2):
+        return False
+    list1.sort()
+    list2.sort()
+    for i in range(len(list1)):
+        if set(list1[i]) != set(list2[i]):
+            return False
+    
+    return True
 
 if __name__ == "__main__":
     sol = Solution()
-    beginWord = "hit"
-    endWord = "cog"
-    wordList = ["hot","dot","dog","lot","log","cog"]
-    # ladders = sol.findLadders(beginWord, endWord, wordList)
-    # print(ladders)
 
-    beginWord = "qa"
-    endWord = "sq"
-    wordList = ["si","go","se","cm","so","ph","mt","db","mb","sb","kr","ln","tm","le","av","sm","ar","ci","ca","br","ti","ba","to","ra","fa","yo","ow","sn","ya","cr","po","fe","ho","ma","re","or","rn","au","ur","rh","sr","tc","lt","lo","as","fr","nb","yb","if","pb","ge","th","pm","rb","sh","co","ga","li","ha","hz","no","bi","di","hi","qa","pi","os","uh","wm","an","me","mo","na","la","st","er","sc","ne","mn","mi","am","ex","pt","io","be","fm","ta","tb","ni","mr","pa","he","lr","sq","ye"]
+    # beginWord = "hit"
+    # endWord = "cog"
+    # wordList = ["hot","dot","dog","lot","log","cog"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["hit","hot","dot","dog","cog"],["hit","hot","lot","log","cog"]]
+    # assert(are_equal(expected, ladders))
+
+    # beginWord = "hit"
+    # endWord = "cog"
+    # wordList = ["hot","dot","dog","lot","log"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = []
+    # assert(are_equal(expected, ladders))
+
+    # beginWord = "qa"
+    # endWord = "sq"
+    # wordList = ["si","go","se","cm","so","ph","mt","db","mb","sb","kr","ln","tm","le","av","sm","ar","ci","ca","br","ti","ba","to","ra","fa","yo","ow","sn","ya","cr","po","fe","ho","ma","re","or","rn","au","ur","rh","sr","tc","lt","lo","as","fr","nb","yb","if","pb","ge","th","pm","rb","sh","co","ga","li","ha","hz","no","bi","di","hi","qa","pi","os","uh","wm","an","me","mo","na","la","st","er","sc","ne","mn","mi","am","ex","pt","io","be","fm","ta","tb","ni","mr","pa","he","lr","sq","ye"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [['qa', 'ba', 'be', 'se', 'sq'], ['qa', 'ba', 'bi', 'si', 'sq'], ['qa', 'ba', 'br', 'sr', 'sq'], ['qa', 'ca', 'ci', 'si', 'sq'], ['qa', 'ca', 'cm', 'sm', 'sq'], ['qa', 'ca', 'co', 'so', 'sq'], ['qa', 'ca', 'cr', 'sr', 'sq'], ['qa', 'fa', 'fe', 'se', 'sq'], ['qa', 'fa', 'fm', 'sm', 'sq'], ['qa', 'fa', 'fr', 'sr', 'sq'], ['qa', 'ga', 'ge', 'se', 'sq'], ['qa', 'ga', 'go', 'so', 'sq'], ['qa', 'ha', 'he', 'se', 'sq'], ['qa', 'ha', 'hi', 'si', 'sq'], ['qa', 'ha', 'ho', 'so', 'sq'], ['qa', 'la', 'le', 'se', 'sq'], ['qa', 'la', 'li', 'si', 'sq'], ['qa', 'la', 'ln', 'sn', 'sq'], ['qa', 'la', 'lo', 'so', 'sq'], ['qa', 'la', 'lr', 'sr', 'sq'], ['qa', 'la', 'lt', 'st', 'sq'], ['qa', 'ma', 'mb', 'sb', 'sq'], ['qa', 'ma', 'me', 'se', 'sq'], ['qa', 'ma', 'mi', 'si', 'sq'], ['qa', 'ma', 'mn', 'sn', 'sq'], ['qa', 'ma', 'mo', 'so', 'sq'], ['qa', 'ma', 'mr', 'sr', 'sq'], ['qa', 'ma', 'mt', 'st', 'sq'], ['qa', 'na', 'nb', 'sb', 'sq'], ['qa', 'na', 'ne', 'se', 'sq'], ['qa', 'na', 'ni', 'si', 'sq'], ['qa', 'na', 'no', 'so', 'sq'], ['qa', 'pa', 'pb', 'sb', 'sq'], ['qa', 'pa', 'ph', 'sh', 'sq'], ['qa', 'pa', 'pi', 'si', 'sq'], ['qa', 'pa', 'pm', 'sm', 'sq'], ['qa', 'pa', 'po', 'so', 'sq'], ['qa', 'pa', 'pt', 'st', 'sq'], ['qa', 'ra', 'rb', 'sb', 'sq'], ['qa', 'ra', 're', 'se', 'sq'], ['qa', 'ra', 'rh', 'sh', 'sq'], ['qa', 'ra', 'rn', 'sn', 'sq'], ['qa', 'ta', 'tb', 'sb', 'sq'], ['qa', 'ta', 'tc', 'sc', 'sq'], ['qa', 'ta', 'th', 'sh', 'sq'], ['qa', 'ta', 'ti', 'si', 'sq'], ['qa', 'ta', 'tm', 'sm', 'sq'], ['qa', 'ta', 'to', 'so', 'sq'], ['qa', 'ya', 'yb', 'sb', 'sq'], ['qa', 'ya', 'ye', 'se', 'sq'], ['qa', 'ya', 'yo', 'so', 'sq']]
+    # assert(are_equal(expected, ladders))
+
+    # beginWord = "hot"
+    # endWord = "dog"
+    # wordList = ["hot","dog","dot"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["hot", "dot", "dog"]]
+    # assert(are_equal(expected, ladders))
+
+    # beginWord = "leet"
+    # endWord = "code"
+    # wordList = ["lest","leet","lose","code","lode","robe","lost"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [['leet', 'lest', 'lost', 'lose', 'lode', 'code']]
+    # assert(are_equal(expected, ladders))
+
+    beginWord = "a"
+    endWord = "c"
+    wordList = ["a","b","c"]
     ladders = sol.findLadders(beginWord, endWord, wordList)
-    print(ladders)
+    expected = [['a','c']]
+    assert(are_equal(expected, ladders))
 
     # beginWord = "sand"
     # endWord = "acne"
