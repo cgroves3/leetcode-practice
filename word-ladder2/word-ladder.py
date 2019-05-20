@@ -1,21 +1,61 @@
 import heapq
+import time
+# from path import Path
+# from graph import Graph
 
-# class Path:
-#     def __init__(self, nodes=[], cost=0):
-#         self.cost = 0
-#         self.nodes = []
+class Path:
+    def __init__(self, nodes=None, cost=0):
+        self._cost = cost
+        if nodes is None:
+            self._nodes = []
+        else:
+            self._nodes = nodes
     
-#     def getLastNode(self):
-#         if len(self.nodes) == 0:
-#             return None
-#         return self.nodes[len(self.nodes) - 1]
+    def getLastNode(self):
+        if len(self._nodes) == 0:
+            return ''
+        return self._nodes[len(self._nodes) - 1]
     
-#     def getNodes(self):
-#         return self.nodes
+    def getNodes(self):
+        return self._nodes
     
-#     def addNode(self, node, cost):
-#         self.nodes.append(node)
-#         self.cost += cost
+    def addNode(self, node, cost):
+        self._nodes.append(node)
+        self._cost += cost
+    
+    def removeNode(self, node, cost):
+        self._nodes.remove(node)
+        self._cost -= cost
+
+    def copy(self):
+        return Path(list(self._nodes), self._cost)
+    
+    def cost(self):
+        return self._cost
+    
+    def nodes(self):
+        return self._nodes
+    
+    def reverse(self):
+        self._nodes.reverse()
+    
+    def merge(self, path):
+        if self.getLastNode() != path.nodes()[0]:
+            raise ContinuityError()
+        path_copy = self.copy()
+        path_copy._cost += path.cost()
+        path_copy._nodes = path_copy.nodes() + path.nodes()[1:]
+        return path_copy
+    
+    def __eq__(self, other): 
+        if not isinstance(other, Path):
+            return NotImplemented
+
+        return self._cost == other.cost() and self._nodes == other.nodes()
+    
+class ContinuityError(Exception):
+    def __init__(self, message="Last node of current path and first node of target path are not the same. Resulting path doesn't appear to be similar."):
+        self.message = message
 
 class Graph:
     def __init__(self, startWord, endWord, wordList):
@@ -40,10 +80,14 @@ class Graph:
         return graph
 
     def getEdgeWeight(self, node1, node2):
+        if node1 == node2 or node1 == '':
+            return 0
+
         nodeTup = self.graph.get(node1, '')
         if not nodeTup == '':
-            return nodeTup.get(node2, 0)
-        return 0
+            return nodeTup.get(node2, None)
+
+        return None
 
     def getNeighbors(self, node):
         neighborDic = self.graph.get(node, '')
@@ -52,36 +96,41 @@ class Graph:
     def getConnectedWords(self, word, wordList):
         words = {}
         for w in wordList:
-            if getWordDifferenceCount(w, word) == 1:
+            if self.getWordDifferenceCount(w, word) == 1:
                 words[w] = 1
         return words
-        
-def getWordDifferenceCount(firstWord, secondWord):
-    letter_diff_count = 0
-    for i in range(len(secondWord)):
-        if not(secondWord[i] == firstWord[i]):
-            letter_diff_count += 1
-    return letter_diff_count
+    
+    def getWordDifferenceCount(self, firstWord, secondWord):
+        letter_diff_count = 0
+        for i in range(len(secondWord)):
+            if not(secondWord[i] == firstWord[i]):
+                letter_diff_count += 1
+        return letter_diff_count
 
 def runDijkstra(graph, startingWord, endWord):
-    
     if graph is None or graph.isEmpty():
         return []
 
     explored = []
     frontier = [(0, startingWord)]
-    paths = {startingWord: [-1, [[]]]}
+    path = Path()
+    paths = {startingWord: [path]}
 
     while True:
+
+        if len(frontier) == 0:
+            return []
+
         nodeTup = heapq.heappop(frontier)
         node = nodeTup[1]
         
         # Get path node
-        addNodeToPath(graph, paths, node)
+        addNodeToPaths(paths[node], graph, node)
 
         explored.append(node)
         if node == endWord:
-            return paths[endWord][1]
+            shortestPaths = [path.nodes() for path in paths[endWord]]
+            return shortestPaths
 
         neighbors = graph.getNeighbors(node)
         unexploredNeighbors = [neighbor for neighbor in neighbors if not(neighbor in explored)]
@@ -101,59 +150,59 @@ def union(paths1, paths2):
 
 
 def runBiDijkstra(graph, startingWord, endWord):
-    
+
     if graph is None or graph.isEmpty():
         return []
 
     startGoalExplored = []
     startGoalFrontier = [(0, startingWord)]
-    startGoalPaths = {startingWord: [0, [[]]]}
+    startGoalPath = Path()
+    startGoalPaths = {startingWord: [startGoalPath]}
 
     goalStartExplored = []
     goalStartFrontier = [(0, endWord)]
-    goalStartPaths = {endWord: [0, [[]]]}
+    goalStartPath = Path()
+    goalStartPaths = {endWord: [goalStartPath]}
 
     while True:
+
+        if len(startGoalFrontier) == 0 or len(goalStartFrontier) == 0:
+            return []
+
         startGoalNodeTup = heapq.heappop(startGoalFrontier)
         startGoalNode = startGoalNodeTup[1]
 
+
         goalStartNodeTup = heapq.heappop(goalStartFrontier)
         goalStartNode = goalStartNodeTup[1]
-        
-        # Get path node
-        # addNodeToPath(graph, startGoalPaths, startGoalNode)
 
-        # addNodeToPath(graph, goalStartPaths, goalStartNode)
 
-        # startGoalExplored.append(startGoalNode)
-        # goalStartExplored.append(goalStartNode)
-
-        addNodeToPath(graph, startGoalPaths, startGoalNode)
+        addNodeToPaths(startGoalPaths.get(startGoalNode, []), graph, startGoalNode)
         startGoalExplored.append(startGoalNode)
 
         if startGoalNode in goalStartExplored:
             pathsStartGoal = getMinPaths(startGoalPaths, goalStartPaths, startGoalNode)
-            min_cost = pathsStartGoal[0][0]
-            mergedPaths = FullMerge(graph, startGoalPaths, goalStartPaths, startGoalNode, goalStartNode, min_cost)
+            if len(pathsStartGoal) > 0:
+                min_cost = pathsStartGoal[0].cost()
+            mergedPaths = fullMerge(graph, startGoalPaths, goalStartPaths, min_cost)
             mergedPaths = union(pathsStartGoal, mergedPaths)
-            paths = GetPaths(mergedPaths)
+            paths = getNodes(mergedPaths)
             return paths
         
-        addNodeToPath(graph, goalStartPaths, goalStartNode)
+        addNodeToPaths(goalStartPaths.get(goalStartNode, []), graph, goalStartNode)
         goalStartExplored.append(goalStartNode)
 
         if goalStartNode in startGoalExplored:
             pathsGoalStart = getMinPaths(goalStartPaths, startGoalPaths, goalStartNode)
-            for pathsListTup in pathsGoalStart:
-                path = pathsListTup[1]
+            for path in pathsGoalStart:
                 path.reverse()
-            min_cost = pathsGoalStart[0][0]
-            mergedPaths = FullMerge(graph, goalStartPaths, startGoalPaths, goalStartNode, startGoalNode, min_cost)
-            for pathsListTup in mergedPaths:
-                path = pathsListTup[1]
+            if len(pathsGoalStart) > 0:
+                min_cost = pathsGoalStart[0].cost()
+            mergedPaths = fullMerge(graph, goalStartPaths, startGoalPaths, min_cost)
+            for path in mergedPaths:
                 path.reverse()
             mergedPaths = union(pathsGoalStart, mergedPaths)
-            paths = GetPaths(mergedPaths)
+            paths = getNodes(mergedPaths)
             return paths
 
         startGoalNeighbors = graph.getNeighbors(startGoalNode)
@@ -164,39 +213,43 @@ def runBiDijkstra(graph, startingWord, endWord):
         unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(neighbor in goalStartExplored)]
         addNeighbors(graph, unexploredNeighbors, goalStartFrontier, goalStartPaths, goalStartNode)
 
-def GetPaths(costPathTups):
-    paths = []
-    for costPathTup in costPathTups:
-        path = costPathTup[1]
-        if path not in paths:
-            paths.append(path)
-    return paths
+def getNodes(paths):
+    nodes = []
+    for path in paths:
+        if path.nodes() not in nodes:
+            nodes.append(path.nodes())
+    return nodes
 
-def FullMerge(graph, startGoalPaths, goalStartPaths, startGoalNode, goalStartNode, min_cost):
-    pathsStartGoal = mergePaths(graph, startGoalPaths, goalStartPaths, startGoalNode, min_cost)
-    # pathsGoalStart = mergePaths(graph, goalStartPaths, startGoalPaths, goalStartNode, min_cost)
-    # unionPaths = union(pathsStartGoal, pathsGoalStart)    
+def fullMerge(graph, startGoalPaths, goalStartPaths, min_cost):
+    pathsStartGoal = mergePaths(graph, startGoalPaths, goalStartPaths, min_cost)
+    pathsGoalStart = mergePaths(graph, goalStartPaths, startGoalPaths, min_cost)
+    for path in pathsGoalStart:
+        path.reverse()
+    unionPaths = union(pathsStartGoal, pathsGoalStart)
     mergedFrontierPaths = mergePathsWithFrontier(graph, startGoalPaths, goalStartPaths, min_cost)
-    return union(pathsStartGoal, mergedFrontierPaths)
-        
+    # return union(pathsStartGoal, mergedFrontierPaths)
+    return union(unionPaths, mergedFrontierPaths)
+    # return union(pathsStartGoal, pathsGoalStart)
+    
 def addNeighbors(graph, neighbors, frontier, paths, node):
-    pathCostTuple = paths[node]
-    pathList = pathCostTuple[1]
+    pathList = paths[node]
+    firstPath = pathList[0]
+    frontierList = listify(frontier)
     for neighbor in neighbors:
-        if not(neighbor in listify(frontier)):
+        if not(neighbor in frontierList):
             pathsListCpy = []
-            for pL in pathList:
-                pathsListCpy.append(list(pL))
-            paths[neighbor] = [pathCostTuple[0], pathsListCpy]
-            heapq.heappush(frontier, (pathCostTuple[0] + graph.getEdgeWeight(node, neighbor), neighbor))
+            for path in pathList:
+                pathsListCpy.append(path.copy())
+            paths[neighbor] = pathsListCpy
+            heapq.heappush(frontier, (firstPath.cost() + graph.getEdgeWeight(node, neighbor), neighbor))
         else:           
             # Append paths to path list if the cost is equal to current total cost
-            neighborPathList = paths[neighbor][1]
-            lastNodeOfNeighborPath = neighborPathList[0][len(neighborPathList[0])-1]
-            if paths[neighbor][0] + graph.getEdgeWeight(lastNodeOfNeighborPath, neighbor) == pathCostTuple[0] + graph.getEdgeWeight(node, neighbor):
-                neighborPathList = paths[neighbor][1]
-                for pL in pathList:
-                    neighborPathList.append(list(pL))
+            neighborPathList = paths[neighbor]
+            if len(neighborPathList) > 0:
+                firstNeighborPath = neighborPathList[0]
+                if firstNeighborPath.cost() + graph.getEdgeWeight(firstNeighborPath.getLastNode(), neighbor) == firstPath.cost() + graph.getEdgeWeight(node, neighbor):
+                    for pL in pathList:
+                        neighborPathList.append(pL.copy())
 
     del paths[node]
 
@@ -206,83 +259,62 @@ def intersect(list1, list2):
 
 def mergePathsWithFrontier(graph, paths1, paths2, minPathCost):
     paths = []
-    # intersection_nodes = intersect(listify(frontier1), listify(frontier2))
     intersection_nodes = intersect(paths1.keys(), paths2.keys())
     for node in intersection_nodes:
-        path1Tup = paths1[node]
-        path2Tup = paths2[node]
-        path1FirstList = path1Tup[1][0]
-        path2FirstList = path2Tup[1][0]
-        path1List = path1Tup[1]
-        if not node in path1FirstList and node not in path2FirstList:
-            path1List = addNodeToPath(graph, paths1, node)
-        if node in path1FirstList and node in path2FirstList:
-            path1List = RemoveNodeToPath(graph, paths1, node)
-        path2List = list(path2Tup[1])
-        lastNode = path2List[0][len(path2List[0])-1]
-        path2List[0].reverse()
-        
-        totalPathCost = path1Tup[0] + path2Tup[0] + graph.getEdgeWeight(lastNode, node)
-        if totalPathCost <= minPathCost:
-            paths.append([totalPathCost, path1List[0] + path2List[0]])
-        
+        pathList1 = paths1[node]
+        pathList2 = paths2[node]
+        firstPath1 = pathList1[0]
+        firstPath2 = pathList2[0]
+
+        if not node in firstPath1.nodes():
+            addNodeToPaths(pathList1, graph, node)
+        if not node in firstPath2.nodes():
+            addNodeToPaths(pathList2, graph, node)
+
+        for path1 in pathList1:
+            for path2 in pathList2:
+                path2Rev = path2.copy()
+                path2Rev.reverse()
+                mergedPath = path1.merge(path2Rev)
+
+                if mergedPath.cost() <= minPathCost:
+                    paths.append(mergedPath)
     return paths
 
+def addNodeToPaths(paths, graph, node):
+    for path in paths:
+        edgeWeight = graph.getEdgeWeight(path.getLastNode(), node)
+        path.addNode(node, edgeWeight)
 
 def getMinPaths(sourcePaths, targetPaths, node):
     paths = []
-    sourcePathTup = sourcePaths[node]
-    for sourcePathList in sourcePathTup[1]:
-        for _, targetPathTup in targetPaths.items():
-            for targetPathList in targetPathTup[1]:
-                endingNode = targetPathList[len(targetPathList) -1]
+    sourcePathsList = sourcePaths.get(node, [])
+    for sourcePath in sourcePathsList:
+        for targetPathList in targetPaths.values():
+            for targetPath in targetPathList:
+                endingNode = targetPath.getLastNode()
                 if endingNode == node:
-                    targetPathListRev = list(targetPathList)
-                    targetPathListRev.remove(endingNode)
+                    targetPathListRev = targetPath.copy()
                     targetPathListRev.reverse()
-                    paths.append([sourcePathTup[0] + targetPathTup[0] , list(sourcePathList) + targetPathListRev])
+                    paths.append(sourcePath.merge(targetPathListRev))
     return paths
-        
 
-def mergePaths(graph, sourcePaths, targetPaths, node, min_cost):
+def mergePaths(graph, sourcePaths, targetPaths, min_cost):
     paths = []
-    sourcePathTup = sourcePaths[node]
-    targetPathTup = targetPaths.get(node, None)
-    if targetPathTup != None:
-        targetPathList = targetPathTup[1]
-        for sourcePathList in sourcePathTup[1]:
-            #Handle node on the frontier of paths2
-            for path in targetPathList:
-                targetPathLastNode = path[len(path)-1]
-                targetPathListRev = list(path)
-                if targetPathLastNode == node:
-                    targetPathListRev.remove(targetPathLastNode)
-                if sourcePathTup[0] + targetPathTup[0] + graph.getEdgeWeight(targetPathLastNode, node) == min_cost:
+    unmergedNodes = list(sourcePaths.keys())
+    for n in unmergedNodes:
+        for sourcePath in sourcePaths[n]:
+            for targetPath in targetPaths.get(sourcePath.getLastNode(), []):
+                edgeWeight = graph.getEdgeWeight(sourcePath.getLastNode(), targetPath.getLastNode())
+                if edgeWeight != None and sourcePath.cost() + targetPath.cost() + edgeWeight == min_cost:
+                    targetPathListRev = targetPath.copy()
+                    if sourcePath.getLastNode() != targetPathListRev.getLastNode():
+                        targetPathListRev.addNode(sourcePath.getLastNode(), graph.getEdgeWeight(sourcePath.getLastNode(), targetPathListRev.getLastNode()))
                     targetPathListRev.reverse()
-                    paths.append([sourcePathTup[0] + targetPathTup[0] + graph.getEdgeWeight(targetPathLastNode, node) , list(sourcePathList) + targetPathListRev])
+                    mergedPath = sourcePath.merge(targetPathListRev)
+                    if not mergedPath in paths:
+                        paths.append(sourcePath.merge(targetPathListRev))
     return paths
-
-def addNodeToPath(graph, paths, node):
-    pathList = paths[node][1]
-    if len(pathList[0]) == 0:
-        lastNode = ''
-    else:
-        lastNode = pathList[0][len(pathList[0]) - 1]
-    for path_list in pathList: 
-        path_list.append(node)
-    paths[node][0] += graph.getEdgeWeight(lastNode, node)
-    return pathList
-
-def RemoveNodeToPath(graph, paths, node):
-    pathList = paths[node][1]
-    if len(pathList[0]) == 0:
-        lastNode = ''
-    else:
-        lastNode = pathList[0][len(pathList[0]) - 1]
-    for path_list in pathList: 
-        path_list.remove(node)
-    paths[node][0] -= graph.getEdgeWeight(lastNode, node)
-    return pathList
 
 def listify(heapList):
     items = []
@@ -293,8 +325,14 @@ def listify(heapList):
 class Solution(object):
     def findLadders(self, beginWord, endWord, wordList):
         graph = Graph(beginWord, endWord, wordList)
-        biPaths = runBiDijkstra(graph, beginWord, endWord)
-        return biPaths
+        start = time.time()
+        # paths = runBiDijkstra(graph, beginWord, endWord)
+        # print("Bidirectional Dijkstra: ", time.time() - start)
+
+        # start = time.time()
+        paths = runDijkstra(graph, beginWord, endWord)
+        print("Dijkstra: ", time.time() - start)
+        return paths
 
 def are_equal(list1, list2):
     if len(list1) != len(list2):
@@ -324,6 +362,13 @@ if __name__ == "__main__":
     # expected = []
     # assert(are_equal(expected, ladders))
 
+    # beginWord = "red"
+    # endWord = "tax"
+    # wordList = ["ted","tex","red","tax","tad","den","rex","pee"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["red","ted","tad","tax"],["red","ted","tex","tax"],["red","rex","tex","tax"]]
+    # assert(are_equal(expected, ladders))
+
     # beginWord = "qa"
     # endWord = "sq"
     # wordList = ["si","go","se","cm","so","ph","mt","db","mb","sb","kr","ln","tm","le","av","sm","ar","ci","ca","br","ti","ba","to","ra","fa","yo","ow","sn","ya","cr","po","fe","ho","ma","re","or","rn","au","ur","rh","sr","tc","lt","lo","as","fr","nb","yb","if","pb","ge","th","pm","rb","sh","co","ga","li","ha","hz","no","bi","di","hi","qa","pi","os","uh","wm","an","me","mo","na","la","st","er","sc","ne","mn","mi","am","ex","pt","io","be","fm","ta","tb","ni","mr","pa","he","lr","sq","ye"]
@@ -345,15 +390,15 @@ if __name__ == "__main__":
     # expected = [['leet', 'lest', 'lost', 'lose', 'lode', 'code']]
     # assert(are_equal(expected, ladders))
 
-    beginWord = "a"
-    endWord = "c"
-    wordList = ["a","b","c"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [['a','c']]
-    assert(are_equal(expected, ladders))
-
-    # beginWord = "sand"
-    # endWord = "acne"
-    # wordList = ["slit","bunk","wars","ping","viva","wynn","wows","irks","gang","pool","mock","fort","heel","send","ship","cols","alec","foal","nabs","gaze","giza","mays","dogs","karo","cums","jedi","webb","lend","mire","jose","catt","grow","toss","magi","leis","bead","kara","hoof","than","ires","baas","vein","kari","riga","oars","gags","thug","yawn","wive","view","germ","flab","july","tuck","rory","bean","feed","rhee","jeez","gobs","lath","desk","yoko","cute","zeus","thus","dims","link","dirt","mara","disc","limy","lewd","maud","duly","elsa","hart","rays","rues","camp","lack","okra","tome","math","plug","monk","orly","friz","hogs","yoda","poop","tick","plod","cloy","pees","imps","lead","pope","mall","frey","been","plea","poll","male","teak","soho","glob","bell","mary","hail","scan","yips","like","mull","kory","odor","byte","kaye","word","honk","asks","slid","hopi","toke","gore","flew","tins","mown","oise","hall","vega","sing","fool","boat","bobs","lain","soft","hard","rots","sees","apex","chan","told","woos","unit","scow","gilt","beef","jars","tyre","imus","neon","soap","dabs","rein","ovid","hose","husk","loll","asia","cope","tail","hazy","clad","lash","sags","moll","eddy","fuel","lift","flog","land","sigh","saks","sail","hook","visa","tier","maws","roeg","gila","eyes","noah","hypo","tore","eggs","rove","chap","room","wait","lurk","race","host","dada","lola","gabs","sobs","joel","keck","axed","mead","gust","laid","ends","oort","nose","peer","kept","abet","iran","mick","dead","hags","tens","gown","sick","odis","miro","bill","fawn","sumo","kilt","huge","ores","oran","flag","tost","seth","sift","poet","reds","pips","cape","togo","wale","limn","toll","ploy","inns","snag","hoes","jerk","flux","fido","zane","arab","gamy","raze","lank","hurt","rail","hind","hoot","dogy","away","pest","hoed","pose","lose","pole","alva","dino","kind","clan","dips","soup","veto","edna","damp","gush","amen","wits","pubs","fuzz","cash","pine","trod","gunk","nude","lost","rite","cory","walt","mica","cart","avow","wind","book","leon","life","bang","draw","leek","skis","dram","ripe","mine","urea","tiff","over","gale","weir","defy","norm","tull","whiz","gill","ward","crag","when","mill","firs","sans","flue","reid","ekes","jain","mutt","hems","laps","piss","pall","rowe","prey","cull","knew","size","wets","hurl","wont","suva","girt","prys","prow","warn","naps","gong","thru","livy","boar","sade","amok","vice","slat","emir","jade","karl","loyd","cerf","bess","loss","rums","lats","bode","subs","muss","maim","kits","thin","york","punt","gays","alpo","aids","drag","eras","mats","pyre","clot","step","oath","lout","wary","carp","hums","tang","pout","whip","fled","omar","such","kano","jake","stan","loop","fuss","mini","byrd","exit","fizz","lire","emil","prop","noes","awed","gift","soli","sale","gage","orin","slur","limp","saar","arks","mast","gnat","port","into","geed","pave","awls","cent","cunt","full","dint","hank","mate","coin","tars","scud","veer","coax","bops","uris","loom","shod","crib","lids","drys","fish","edit","dick","erna","else","hahs","alga","moho","wire","fora","tums","ruth","bets","duns","mold","mush","swop","ruby","bolt","nave","kite","ahem","brad","tern","nips","whew","bait","ooze","gino","yuck","drum","shoe","lobe","dusk","cult","paws","anew","dado","nook","half","lams","rich","cato","java","kemp","vain","fees","sham","auks","gish","fire","elam","salt","sour","loth","whit","yogi","shes","scam","yous","lucy","inez","geld","whig","thee","kelp","loaf","harm","tomb","ever","airs","page","laud","stun","paid","goop","cobs","judy","grab","doha","crew","item","fogs","tong","blip","vest","bran","wend","bawl","feel","jets","mixt","tell","dire","devi","milo","deng","yews","weak","mark","doug","fare","rigs","poke","hies","sian","suez","quip","kens","lass","zips","elva","brat","cosy","teri","hull","spun","russ","pupa","weed","pulp","main","grim","hone","cord","barf","olav","gaps","rote","wilt","lars","roll","balm","jana","give","eire","faun","suck","kegs","nita","weer","tush","spry","loge","nays","heir","dope","roar","peep","nags","ates","bane","seas","sign","fred","they","lien","kiev","fops","said","lawn","lind","miff","mass","trig","sins","furl","ruin","sent","cray","maya","clog","puns","silk","axis","grog","jots","dyer","mope","rand","vend","keen","chou","dose","rain","eats","sped","maui","evan","time","todd","skit","lief","sops","outs","moot","faze","biro","gook","fill","oval","skew","veil","born","slob","hyde","twin","eloy","beat","ergs","sure","kobe","eggo","hens","jive","flax","mons","dunk","yest","begs","dial","lodz","burp","pile","much","dock","rene","sago","racy","have","yalu","glow","move","peps","hods","kins","salk","hand","cons","dare","myra","sega","type","mari","pelt","hula","gulf","jugs","flay","fest","spat","toms","zeno","taps","deny","swag","afro","baud","jabs","smut","egos","lara","toes","song","fray","luis","brut","olen","mere","ruff","slum","glad","buds","silt","rued","gelt","hive","teem","ides","sink","ands","wisp","omen","lyre","yuks","curb","loam","darn","liar","pugs","pane","carl","sang","scar","zeds","claw","berg","hits","mile","lite","khan","erik","slug","loon","dena","ruse","talk","tusk","gaol","tads","beds","sock","howe","gave","snob","ahab","part","meir","jell","stir","tels","spit","hash","omit","jinx","lyra","puck","laue","beep","eros","owed","cede","brew","slue","mitt","jest","lynx","wads","gena","dank","volt","gray","pony","veld","bask","fens","argo","work","taxi","afar","boon","lube","pass","lazy","mist","blot","mach","poky","rams","sits","rend","dome","pray","duck","hers","lure","keep","gory","chat","runt","jams","lays","posy","bats","hoff","rock","keri","raul","yves","lama","ramp","vote","jody","pock","gist","sass","iago","coos","rank","lowe","vows","koch","taco","jinn","juno","rape","band","aces","goal","huck","lila","tuft","swan","blab","leda","gems","hide","tack","porn","scum","frat","plum","duds","shad","arms","pare","chin","gain","knee","foot","line","dove","vera","jays","fund","reno","skid","boys","corn","gwyn","sash","weld","ruiz","dior","jess","leaf","pars","cote","zing","scat","nice","dart","only","owls","hike","trey","whys","ding","klan","ross","barb","ants","lean","dopy","hock","tour","grip","aldo","whim","prom","rear","dins","duff","dell","loch","lava","sung","yank","thar","curl","venn","blow","pomp","heat","trap","dali","nets","seen","gash","twig","dads","emmy","rhea","navy","haws","mite","bows","alas","ives","play","soon","doll","chum","ajar","foam","call","puke","kris","wily","came","ales","reef","raid","diet","prod","prut","loot","soar","coed","celt","seam","dray","lump","jags","nods","sole","kink","peso","howl","cost","tsar","uric","sore","woes","sewn","sake","cask","caps","burl","tame","bulk","neva","from","meet","webs","spar","fuck","buoy","wept","west","dual","pica","sold","seed","gads","riff","neck","deed","rudy","drop","vale","flit","romp","peak","jape","jews","fain","dens","hugo","elba","mink","town","clam","feud","fern","dung","newt","mime","deem","inti","gigs","sosa","lope","lard","cara","smug","lego","flex","doth","paar","moon","wren","tale","kant","eels","muck","toga","zens","lops","duet","coil","gall","teal","glib","muir","ails","boer","them","rake","conn","neat","frog","trip","coma","must","mono","lira","craw","sled","wear","toby","reel","hips","nate","pump","mont","died","moss","lair","jibe","oils","pied","hobs","cads","haze","muse","cogs","figs","cues","roes","whet","boru","cozy","amos","tans","news","hake","cots","boas","tutu","wavy","pipe","typo","albs","boom","dyke","wail","woke","ware","rita","fail","slab","owes","jane","rack","hell","lags","mend","mask","hume","wane","acne","team","holy","runs","exes","dole","trim","zola","trek","puma","wacs","veep","yaps","sums","lush","tubs","most","witt","bong","rule","hear","awry","sots","nils","bash","gasp","inch","pens","fies","juts","pate","vine","zulu","this","bare","veal","josh","reek","ours","cowl","club","farm","teat","coat","dish","fore","weft","exam","vlad","floe","beak","lane","ella","warp","goth","ming","pits","rent","tito","wish","amps","says","hawk","ways","punk","nark","cagy","east","paul","bose","solo","teed","text","hews","snip","lips","emit","orgy","icon","tuna","soul","kurd","clod","calk","aunt","bake","copy","acid","duse","kiln","spec","fans","bani","irma","pads","batu","logo","pack","oder","atop","funk","gide","bede","bibs","taut","guns","dana","puff","lyme","flat","lake","june","sets","gull","hops","earn","clip","fell","kama","seal","diaz","cite","chew","cuba","bury","yard","bank","byes","apia","cree","nosh","judo","walk","tape","taro","boot","cods","lade","cong","deft","slim","jeri","rile","park","aeon","fact","slow","goff","cane","earp","tart","does","acts","hope","cant","buts","shin","dude","ergo","mode","gene","lept","chen","beta","eden","pang","saab","fang","whir","cove","perk","fads","rugs","herb","putt","nous","vane","corm","stay","bids","vela","roof","isms","sics","gone","swum","wiry","cram","rink","pert","heap","sikh","dais","cell","peel","nuke","buss","rasp","none","slut","bent","dams","serb","dork","bays","kale","cora","wake","welt","rind","trot","sloe","pity","rout","eves","fats","furs","pogo","beth","hued","edam","iamb","glee","lute","keel","airy","easy","tire","rube","bogy","sine","chop","rood","elbe","mike","garb","jill","gaul","chit","dons","bars","ride","beck","toad","make","head","suds","pike","snot","swat","peed","same","gaza","lent","gait","gael","elks","hang","nerf","rosy","shut","glop","pain","dion","deaf","hero","doer","wost","wage","wash","pats","narc","ions","dice","quay","vied","eons","case","pour","urns","reva","rags","aden","bone","rang","aura","iraq","toot","rome","hals","megs","pond","john","yeps","pawl","warm","bird","tint","jowl","gibe","come","hold","pail","wipe","bike","rips","eery","kent","hims","inks","fink","mott","ices","macy","serf","keys","tarp","cops","sods","feet","tear","benz","buys","colo","boil","sews","enos","watt","pull","brag","cork","save","mint","feat","jamb","rubs","roxy","toys","nosy","yowl","tamp","lobs","foul","doom","sown","pigs","hemp","fame","boor","cube","tops","loco","lads","eyre","alta","aged","flop","pram","lesa","sawn","plow","aral","load","lied","pled","boob","bert","rows","zits","rick","hint","dido","fist","marc","wuss","node","smog","nora","shim","glut","bale","perl","what","tort","meek","brie","bind","cake","psst","dour","jove","tree","chip","stud","thou","mobs","sows","opts","diva","perm","wise","cuds","sols","alan","mild","pure","gail","wins","offs","nile","yelp","minn","tors","tran","homy","sadr","erse","nero","scab","finn","mich","turd","then","poem","noun","oxus","brow","door","saws","eben","wart","wand","rosa","left","lina","cabs","rapt","olin","suet","kalb","mans","dawn","riel","temp","chug","peal","drew","null","hath","many","took","fond","gate","sate","leak","zany","vans","mart","hess","home","long","dirk","bile","lace","moog","axes","zone","fork","duct","rico","rife","deep","tiny","hugh","bilk","waft","swig","pans","with","kern","busy","film","lulu","king","lord","veda","tray","legs","soot","ells","wasp","hunt","earl","ouch","diem","yell","pegs","blvd","polk","soda","zorn","liza","slop","week","kill","rusk","eric","sump","haul","rims","crop","blob","face","bins","read","care","pele","ritz","beau","golf","drip","dike","stab","jibs","hove","junk","hoax","tats","fief","quad","peat","ream","hats","root","flak","grit","clap","pugh","bosh","lock","mute","crow","iced","lisa","bela","fems","oxes","vies","gybe","huff","bull","cuss","sunk","pups","fobs","turf","sect","atom","debt","sane","writ","anon","mayo","aria","seer","thor","brim","gawk","jack","jazz","menu","yolk","surf","libs","lets","bans","toil","open","aced","poor","mess","wham","fran","gina","dote","love","mood","pale","reps","ines","shot","alar","twit","site","dill","yoga","sear","vamp","abel","lieu","cuff","orbs","rose","tank","gape","guam","adar","vole","your","dean","dear","hebe","crab","hump","mole","vase","rode","dash","sera","balk","lela","inca","gaea","bush","loud","pies","aide","blew","mien","side","kerr","ring","tess","prep","rant","lugs","hobo","joke","odds","yule","aida","true","pone","lode","nona","weep","coda","elmo","skim","wink","bras","pier","bung","pets","tabs","ryan","jock","body","sofa","joey","zion","mace","kick","vile","leno","bali","fart","that","redo","ills","jogs","pent","drub","slaw","tide","lena","seep","gyps","wave","amid","fear","ties","flan","wimp","kali","shun","crap","sage","rune","logs","cain","digs","abut","obit","paps","rids","fair","hack","huns","road","caws","curt","jute","fisk","fowl","duty","holt","miss","rude","vito","baal","ural","mann","mind","belt","clem","last","musk","roam","abed","days","bore","fuze","fall","pict","dump","dies","fiat","vent","pork","eyed","docs","rive","spas","rope","ariz","tout","game","jump","blur","anti","lisp","turn","sand","food","moos","hoop","saul","arch","fury","rise","diss","hubs","burs","grid","ilks","suns","flea","soil","lung","want","nola","fins","thud","kidd","juan","heps","nape","rash","burt","bump","tots","brit","mums","bole","shah","tees","skip","limb","umps","ache","arcs","raft","halo","luce","bahs","leta","conk","duos","siva","went","peek","sulk","reap","free","dubs","lang","toto","hasp","ball","rats","nair","myst","wang","snug","nash","laos","ante","opal","tina","pore","bite","haas","myth","yugo","foci","dent","bade","pear","mods","auto","shop","etch","lyly","curs","aron","slew","tyro","sack","wade","clio","gyro","butt","icky","char","itch","halt","gals","yang","tend","pact","bees","suit","puny","hows","nina","brno","oops","lick","sons","kilo","bust","nome","mona","dull","join","hour","papa","stag","bern","wove","lull","slip","laze","roil","alto","bath","buck","alma","anus","evil","dumb","oreo","rare","near","cure","isis","hill","kyle","pace","comb","nits","flip","clop","mort","thea","wall","kiel","judd","coop","dave","very","amie","blah","flub","talc","bold","fogy","idea","prof","horn","shoo","aped","pins","helm","wees","beer","womb","clue","alba","aloe","fine","bard","limo","shaw","pint","swim","dust","indy","hale","cats","troy","wens","luke","vern","deli","both","brig","daub","sara","sued","bier","noel","olga","dupe","look","pisa","knox","murk","dame","matt","gold","jame","toge","luck","peck","tass","calf","pill","wore","wadi","thur","parr","maul","tzar","ones","lees","dark","fake","bast","zoom","here","moro","wine","bums","cows","jean","palm","fume","plop","help","tuba","leap","cans","back","avid","lice","lust","polo","dory","stew","kate","rama","coke","bled","mugs","ajax","arts","drug","pena","cody","hole","sean","deck","guts","kong","bate","pitt","como","lyle","siam","rook","baby","jigs","bret","bark","lori","reba","sups","made","buzz","gnaw","alps","clay","post","viol","dina","card","lana","doff","yups","tons","live","kids","pair","yawl","name","oven","sirs","gyms","prig","down","leos","noon","nibs","cook","safe","cobb","raja","awes","sari","nerd","fold","lots","pete","deal","bias","zeal","girl","rage","cool","gout","whey","soak","thaw","bear","wing","nagy","well","oink","sven","kurt","etna","held","wood","high","feta","twee","ford","cave","knot","tory","ibis","yaks","vets","foxy","sank","cone","pius","tall","seem","wool","flap","gird","lore","coot","mewl","sere","real","puts","sell","nuts","foil","lilt","saga","heft","dyed","goat","spew","daze","frye","adds","glen","tojo","pixy","gobi","stop","tile","hiss","shed","hahn","baku","ahas","sill","swap","also","carr","manx","lime","debs","moat","eked","bola","pods","coon","lacy","tube","minx","buff","pres","clew","gaff","flee","burn","whom","cola","fret","purl","wick","wigs","donn","guys","toni","oxen","wite","vial","spam","huts","vats","lima","core","eula","thad","peon","erie","oats","boyd","cued","olaf","tams","secs","urey","wile","penn","bred","rill","vary","sues","mail","feds","aves","code","beam","reed","neil","hark","pols","gris","gods","mesa","test","coup","heed","dora","hied","tune","doze","pews","oaks","bloc","tips","maid","goof","four","woof","silo","bray","zest","kiss","yong","file","hilt","iris","tuns","lily","ears","pant","jury","taft","data","gild","pick","kook","colt","bohr","anal","asps","babe","bach","mash","biko","bowl","huey","jilt","goes","guff","bend","nike","tami","gosh","tike","gees","urge","path","bony","jude","lynn","lois","teas","dunn","elul","bonn","moms","bugs","slay","yeah","loan","hulk","lows","damn","nell","jung","avis","mane","waco","loin","knob","tyke","anna","hire","luau","tidy","nuns","pots","quid","exec","hans","hera","hush","shag","scot","moan","wald","ursa","lorn","hunk","loft","yore","alum","mows","slog","emma","spud","rice","worn","erma","need","bags","lark","kirk","pooh","dyes","area","dime","luvs","foch","refs","cast","alit","tugs","even","role","toed","caph","nigh","sony","bide","robs","folk","daft","past","blue","flaw","sana","fits","barr","riot","dots","lamp","cock","fibs","harp","tent","hate","mali","togs","gear","tues","bass","pros","numb","emus","hare","fate","wife","mean","pink","dune","ares","dine","oily","tony","czar","spay","push","glum","till","moth","glue","dive","scad","pops","woks","andy","leah","cusp","hair","alex","vibe","bulb","boll","firm","joys","tara","cole","levy","owen","chow","rump","jail","lapp","beet","slap","kith","more","maps","bond","hick","opus","rust","wist","shat","phil","snow","lott","lora","cary","mote","rift","oust","klee","goad","pith","heep","lupe","ivan","mimi","bald","fuse","cuts","lens","leer","eyry","know","razz","tare","pals","geek","greg","teen","clef","wags","weal","each","haft","nova","waif","rate","katy","yale","dale","leas","axum","quiz","pawn","fend","capt","laws","city","chad","coal","nail","zaps","sort","loci","less","spur","note","foes","fags","gulp","snap","bogs","wrap","dane","melt","ease","felt","shea","calm","star","swam","aery","year","plan","odin","curd","mira","mops","shit","davy","apes","inky","hues","lome","bits","vila","show","best","mice","gins","next","roan","ymir","mars","oman","wild","heal","plus","erin","rave","robe","fast","hutu","aver","jodi","alms","yams","zero","revs","wean","chic","self","jeep","jobs","waxy","duel","seek","spot","raps","pimp","adan","slam","tool","morn","futz","ewes","errs","knit","rung","kans","muff","huhs","tows","lest","meal","azov","gnus","agar","sips","sway","otis","tone","tate","epic","trio","tics","fade","lear","owns","robt","weds","five","lyon","terr","arno","mama","grey","disk","sept","sire","bart","saps","whoa","turk","stow","pyle","joni","zinc","negs","task","leif","ribs","malt","nine","bunt","grin","dona","nope","hams","some","molt","smit","sacs","joan","slav","lady","base","heck","list","take","herd","will","nubs","burg","hugs","peru","coif","zoos","nick","idol","levi","grub","roth","adam","elma","tags","tote","yaws","cali","mete","lula","cubs","prim","luna","jolt","span","pita","dodo","puss","deer","term","dolt","goon","gary","yarn","aims","just","rena","tine","cyst","meld","loki","wong","were","hung","maze","arid","cars","wolf","marx","faye","eave","raga","flow","neal","lone","anne","cage","tied","tilt","soto","opel","date","buns","dorm","kane","akin","ewer","drab","thai","jeer","grad","berm","rods","saki","grus","vast","late","lint","mule","risk","labs","snit","gala","find","spin","ired","slot","oafs","lies","mews","wino","milk","bout","onus","tram","jaws","peas","cleo","seat","gums","cold","vang","dewy","hood","rush","mack","yuan","odes","boos","jami","mare","plot","swab","borg","hays","form","mesh","mani","fife","good","gram","lion","myna","moor","skin","posh","burr","rime","done","ruts","pays","stem","ting","arty","slag","iron","ayes","stub","oral","gets","chid","yens","snub","ages","wide","bail","verb","lamb","bomb","army","yoke","gels","tits","bork","mils","nary","barn","hype","odom","avon","hewn","rios","cams","tact","boss","oleo","duke","eris","gwen","elms","deon","sims","quit","nest","font","dues","yeas","zeta","bevy","gent","torn","cups","worm","baum","axon","purr","vise","grew","govs","meat","chef","rest","lame"]
+    # beginWord = "a"
+    # endWord = "c"
+    # wordList = ["a","b","c"]
     # ladders = sol.findLadders(beginWord, endWord, wordList)
-    # print(ladders)
+    # expected = [['a','c']]
+    # assert(are_equal(expected, ladders))
+
+    beginWord = "sand"
+    endWord = "acne"
+    wordList = ["slit","bunk","wars","ping","viva","wynn","wows","irks","gang","pool","mock","fort","heel","send","ship","cols","alec","foal","nabs","gaze","giza","mays","dogs","karo","cums","jedi","webb","lend","mire","jose","catt","grow","toss","magi","leis","bead","kara","hoof","than","ires","baas","vein","kari","riga","oars","gags","thug","yawn","wive","view","germ","flab","july","tuck","rory","bean","feed","rhee","jeez","gobs","lath","desk","yoko","cute","zeus","thus","dims","link","dirt","mara","disc","limy","lewd","maud","duly","elsa","hart","rays","rues","camp","lack","okra","tome","math","plug","monk","orly","friz","hogs","yoda","poop","tick","plod","cloy","pees","imps","lead","pope","mall","frey","been","plea","poll","male","teak","soho","glob","bell","mary","hail","scan","yips","like","mull","kory","odor","byte","kaye","word","honk","asks","slid","hopi","toke","gore","flew","tins","mown","oise","hall","vega","sing","fool","boat","bobs","lain","soft","hard","rots","sees","apex","chan","told","woos","unit","scow","gilt","beef","jars","tyre","imus","neon","soap","dabs","rein","ovid","hose","husk","loll","asia","cope","tail","hazy","clad","lash","sags","moll","eddy","fuel","lift","flog","land","sigh","saks","sail","hook","visa","tier","maws","roeg","gila","eyes","noah","hypo","tore","eggs","rove","chap","room","wait","lurk","race","host","dada","lola","gabs","sobs","joel","keck","axed","mead","gust","laid","ends","oort","nose","peer","kept","abet","iran","mick","dead","hags","tens","gown","sick","odis","miro","bill","fawn","sumo","kilt","huge","ores","oran","flag","tost","seth","sift","poet","reds","pips","cape","togo","wale","limn","toll","ploy","inns","snag","hoes","jerk","flux","fido","zane","arab","gamy","raze","lank","hurt","rail","hind","hoot","dogy","away","pest","hoed","pose","lose","pole","alva","dino","kind","clan","dips","soup","veto","edna","damp","gush","amen","wits","pubs","fuzz","cash","pine","trod","gunk","nude","lost","rite","cory","walt","mica","cart","avow","wind","book","leon","life","bang","draw","leek","skis","dram","ripe","mine","urea","tiff","over","gale","weir","defy","norm","tull","whiz","gill","ward","crag","when","mill","firs","sans","flue","reid","ekes","jain","mutt","hems","laps","piss","pall","rowe","prey","cull","knew","size","wets","hurl","wont","suva","girt","prys","prow","warn","naps","gong","thru","livy","boar","sade","amok","vice","slat","emir","jade","karl","loyd","cerf","bess","loss","rums","lats","bode","subs","muss","maim","kits","thin","york","punt","gays","alpo","aids","drag","eras","mats","pyre","clot","step","oath","lout","wary","carp","hums","tang","pout","whip","fled","omar","such","kano","jake","stan","loop","fuss","mini","byrd","exit","fizz","lire","emil","prop","noes","awed","gift","soli","sale","gage","orin","slur","limp","saar","arks","mast","gnat","port","into","geed","pave","awls","cent","cunt","full","dint","hank","mate","coin","tars","scud","veer","coax","bops","uris","loom","shod","crib","lids","drys","fish","edit","dick","erna","else","hahs","alga","moho","wire","fora","tums","ruth","bets","duns","mold","mush","swop","ruby","bolt","nave","kite","ahem","brad","tern","nips","whew","bait","ooze","gino","yuck","drum","shoe","lobe","dusk","cult","paws","anew","dado","nook","half","lams","rich","cato","java","kemp","vain","fees","sham","auks","gish","fire","elam","salt","sour","loth","whit","yogi","shes","scam","yous","lucy","inez","geld","whig","thee","kelp","loaf","harm","tomb","ever","airs","page","laud","stun","paid","goop","cobs","judy","grab","doha","crew","item","fogs","tong","blip","vest","bran","wend","bawl","feel","jets","mixt","tell","dire","devi","milo","deng","yews","weak","mark","doug","fare","rigs","poke","hies","sian","suez","quip","kens","lass","zips","elva","brat","cosy","teri","hull","spun","russ","pupa","weed","pulp","main","grim","hone","cord","barf","olav","gaps","rote","wilt","lars","roll","balm","jana","give","eire","faun","suck","kegs","nita","weer","tush","spry","loge","nays","heir","dope","roar","peep","nags","ates","bane","seas","sign","fred","they","lien","kiev","fops","said","lawn","lind","miff","mass","trig","sins","furl","ruin","sent","cray","maya","clog","puns","silk","axis","grog","jots","dyer","mope","rand","vend","keen","chou","dose","rain","eats","sped","maui","evan","time","todd","skit","lief","sops","outs","moot","faze","biro","gook","fill","oval","skew","veil","born","slob","hyde","twin","eloy","beat","ergs","sure","kobe","eggo","hens","jive","flax","mons","dunk","yest","begs","dial","lodz","burp","pile","much","dock","rene","sago","racy","have","yalu","glow","move","peps","hods","kins","salk","hand","cons","dare","myra","sega","type","mari","pelt","hula","gulf","jugs","flay","fest","spat","toms","zeno","taps","deny","swag","afro","baud","jabs","smut","egos","lara","toes","song","fray","luis","brut","olen","mere","ruff","slum","glad","buds","silt","rued","gelt","hive","teem","ides","sink","ands","wisp","omen","lyre","yuks","curb","loam","darn","liar","pugs","pane","carl","sang","scar","zeds","claw","berg","hits","mile","lite","khan","erik","slug","loon","dena","ruse","talk","tusk","gaol","tads","beds","sock","howe","gave","snob","ahab","part","meir","jell","stir","tels","spit","hash","omit","jinx","lyra","puck","laue","beep","eros","owed","cede","brew","slue","mitt","jest","lynx","wads","gena","dank","volt","gray","pony","veld","bask","fens","argo","work","taxi","afar","boon","lube","pass","lazy","mist","blot","mach","poky","rams","sits","rend","dome","pray","duck","hers","lure","keep","gory","chat","runt","jams","lays","posy","bats","hoff","rock","keri","raul","yves","lama","ramp","vote","jody","pock","gist","sass","iago","coos","rank","lowe","vows","koch","taco","jinn","juno","rape","band","aces","goal","huck","lila","tuft","swan","blab","leda","gems","hide","tack","porn","scum","frat","plum","duds","shad","arms","pare","chin","gain","knee","foot","line","dove","vera","jays","fund","reno","skid","boys","corn","gwyn","sash","weld","ruiz","dior","jess","leaf","pars","cote","zing","scat","nice","dart","only","owls","hike","trey","whys","ding","klan","ross","barb","ants","lean","dopy","hock","tour","grip","aldo","whim","prom","rear","dins","duff","dell","loch","lava","sung","yank","thar","curl","venn","blow","pomp","heat","trap","dali","nets","seen","gash","twig","dads","emmy","rhea","navy","haws","mite","bows","alas","ives","play","soon","doll","chum","ajar","foam","call","puke","kris","wily","came","ales","reef","raid","diet","prod","prut","loot","soar","coed","celt","seam","dray","lump","jags","nods","sole","kink","peso","howl","cost","tsar","uric","sore","woes","sewn","sake","cask","caps","burl","tame","bulk","neva","from","meet","webs","spar","fuck","buoy","wept","west","dual","pica","sold","seed","gads","riff","neck","deed","rudy","drop","vale","flit","romp","peak","jape","jews","fain","dens","hugo","elba","mink","town","clam","feud","fern","dung","newt","mime","deem","inti","gigs","sosa","lope","lard","cara","smug","lego","flex","doth","paar","moon","wren","tale","kant","eels","muck","toga","zens","lops","duet","coil","gall","teal","glib","muir","ails","boer","them","rake","conn","neat","frog","trip","coma","must","mono","lira","craw","sled","wear","toby","reel","hips","nate","pump","mont","died","moss","lair","jibe","oils","pied","hobs","cads","haze","muse","cogs","figs","cues","roes","whet","boru","cozy","amos","tans","news","hake","cots","boas","tutu","wavy","pipe","typo","albs","boom","dyke","wail","woke","ware","rita","fail","slab","owes","jane","rack","hell","lags","mend","mask","hume","wane","acne","team","holy","runs","exes","dole","trim","zola","trek","puma","wacs","veep","yaps","sums","lush","tubs","most","witt","bong","rule","hear","awry","sots","nils","bash","gasp","inch","pens","fies","juts","pate","vine","zulu","this","bare","veal","josh","reek","ours","cowl","club","farm","teat","coat","dish","fore","weft","exam","vlad","floe","beak","lane","ella","warp","goth","ming","pits","rent","tito","wish","amps","says","hawk","ways","punk","nark","cagy","east","paul","bose","solo","teed","text","hews","snip","lips","emit","orgy","icon","tuna","soul","kurd","clod","calk","aunt","bake","copy","acid","duse","kiln","spec","fans","bani","irma","pads","batu","logo","pack","oder","atop","funk","gide","bede","bibs","taut","guns","dana","puff","lyme","flat","lake","june","sets","gull","hops","earn","clip","fell","kama","seal","diaz","cite","chew","cuba","bury","yard","bank","byes","apia","cree","nosh","judo","walk","tape","taro","boot","cods","lade","cong","deft","slim","jeri","rile","park","aeon","fact","slow","goff","cane","earp","tart","does","acts","hope","cant","buts","shin","dude","ergo","mode","gene","lept","chen","beta","eden","pang","saab","fang","whir","cove","perk","fads","rugs","herb","putt","nous","vane","corm","stay","bids","vela","roof","isms","sics","gone","swum","wiry","cram","rink","pert","heap","sikh","dais","cell","peel","nuke","buss","rasp","none","slut","bent","dams","serb","dork","bays","kale","cora","wake","welt","rind","trot","sloe","pity","rout","eves","fats","furs","pogo","beth","hued","edam","iamb","glee","lute","keel","airy","easy","tire","rube","bogy","sine","chop","rood","elbe","mike","garb","jill","gaul","chit","dons","bars","ride","beck","toad","make","head","suds","pike","snot","swat","peed","same","gaza","lent","gait","gael","elks","hang","nerf","rosy","shut","glop","pain","dion","deaf","hero","doer","wost","wage","wash","pats","narc","ions","dice","quay","vied","eons","case","pour","urns","reva","rags","aden","bone","rang","aura","iraq","toot","rome","hals","megs","pond","john","yeps","pawl","warm","bird","tint","jowl","gibe","come","hold","pail","wipe","bike","rips","eery","kent","hims","inks","fink","mott","ices","macy","serf","keys","tarp","cops","sods","feet","tear","benz","buys","colo","boil","sews","enos","watt","pull","brag","cork","save","mint","feat","jamb","rubs","roxy","toys","nosy","yowl","tamp","lobs","foul","doom","sown","pigs","hemp","fame","boor","cube","tops","loco","lads","eyre","alta","aged","flop","pram","lesa","sawn","plow","aral","load","lied","pled","boob","bert","rows","zits","rick","hint","dido","fist","marc","wuss","node","smog","nora","shim","glut","bale","perl","what","tort","meek","brie","bind","cake","psst","dour","jove","tree","chip","stud","thou","mobs","sows","opts","diva","perm","wise","cuds","sols","alan","mild","pure","gail","wins","offs","nile","yelp","minn","tors","tran","homy","sadr","erse","nero","scab","finn","mich","turd","then","poem","noun","oxus","brow","door","saws","eben","wart","wand","rosa","left","lina","cabs","rapt","olin","suet","kalb","mans","dawn","riel","temp","chug","peal","drew","null","hath","many","took","fond","gate","sate","leak","zany","vans","mart","hess","home","long","dirk","bile","lace","moog","axes","zone","fork","duct","rico","rife","deep","tiny","hugh","bilk","waft","swig","pans","with","kern","busy","film","lulu","king","lord","veda","tray","legs","soot","ells","wasp","hunt","earl","ouch","diem","yell","pegs","blvd","polk","soda","zorn","liza","slop","week","kill","rusk","eric","sump","haul","rims","crop","blob","face","bins","read","care","pele","ritz","beau","golf","drip","dike","stab","jibs","hove","junk","hoax","tats","fief","quad","peat","ream","hats","root","flak","grit","clap","pugh","bosh","lock","mute","crow","iced","lisa","bela","fems","oxes","vies","gybe","huff","bull","cuss","sunk","pups","fobs","turf","sect","atom","debt","sane","writ","anon","mayo","aria","seer","thor","brim","gawk","jack","jazz","menu","yolk","surf","libs","lets","bans","toil","open","aced","poor","mess","wham","fran","gina","dote","love","mood","pale","reps","ines","shot","alar","twit","site","dill","yoga","sear","vamp","abel","lieu","cuff","orbs","rose","tank","gape","guam","adar","vole","your","dean","dear","hebe","crab","hump","mole","vase","rode","dash","sera","balk","lela","inca","gaea","bush","loud","pies","aide","blew","mien","side","kerr","ring","tess","prep","rant","lugs","hobo","joke","odds","yule","aida","true","pone","lode","nona","weep","coda","elmo","skim","wink","bras","pier","bung","pets","tabs","ryan","jock","body","sofa","joey","zion","mace","kick","vile","leno","bali","fart","that","redo","ills","jogs","pent","drub","slaw","tide","lena","seep","gyps","wave","amid","fear","ties","flan","wimp","kali","shun","crap","sage","rune","logs","cain","digs","abut","obit","paps","rids","fair","hack","huns","road","caws","curt","jute","fisk","fowl","duty","holt","miss","rude","vito","baal","ural","mann","mind","belt","clem","last","musk","roam","abed","days","bore","fuze","fall","pict","dump","dies","fiat","vent","pork","eyed","docs","rive","spas","rope","ariz","tout","game","jump","blur","anti","lisp","turn","sand","food","moos","hoop","saul","arch","fury","rise","diss","hubs","burs","grid","ilks","suns","flea","soil","lung","want","nola","fins","thud","kidd","juan","heps","nape","rash","burt","bump","tots","brit","mums","bole","shah","tees","skip","limb","umps","ache","arcs","raft","halo","luce","bahs","leta","conk","duos","siva","went","peek","sulk","reap","free","dubs","lang","toto","hasp","ball","rats","nair","myst","wang","snug","nash","laos","ante","opal","tina","pore","bite","haas","myth","yugo","foci","dent","bade","pear","mods","auto","shop","etch","lyly","curs","aron","slew","tyro","sack","wade","clio","gyro","butt","icky","char","itch","halt","gals","yang","tend","pact","bees","suit","puny","hows","nina","brno","oops","lick","sons","kilo","bust","nome","mona","dull","join","hour","papa","stag","bern","wove","lull","slip","laze","roil","alto","bath","buck","alma","anus","evil","dumb","oreo","rare","near","cure","isis","hill","kyle","pace","comb","nits","flip","clop","mort","thea","wall","kiel","judd","coop","dave","very","amie","blah","flub","talc","bold","fogy","idea","prof","horn","shoo","aped","pins","helm","wees","beer","womb","clue","alba","aloe","fine","bard","limo","shaw","pint","swim","dust","indy","hale","cats","troy","wens","luke","vern","deli","both","brig","daub","sara","sued","bier","noel","olga","dupe","look","pisa","knox","murk","dame","matt","gold","jame","toge","luck","peck","tass","calf","pill","wore","wadi","thur","parr","maul","tzar","ones","lees","dark","fake","bast","zoom","here","moro","wine","bums","cows","jean","palm","fume","plop","help","tuba","leap","cans","back","avid","lice","lust","polo","dory","stew","kate","rama","coke","bled","mugs","ajax","arts","drug","pena","cody","hole","sean","deck","guts","kong","bate","pitt","como","lyle","siam","rook","baby","jigs","bret","bark","lori","reba","sups","made","buzz","gnaw","alps","clay","post","viol","dina","card","lana","doff","yups","tons","live","kids","pair","yawl","name","oven","sirs","gyms","prig","down","leos","noon","nibs","cook","safe","cobb","raja","awes","sari","nerd","fold","lots","pete","deal","bias","zeal","girl","rage","cool","gout","whey","soak","thaw","bear","wing","nagy","well","oink","sven","kurt","etna","held","wood","high","feta","twee","ford","cave","knot","tory","ibis","yaks","vets","foxy","sank","cone","pius","tall","seem","wool","flap","gird","lore","coot","mewl","sere","real","puts","sell","nuts","foil","lilt","saga","heft","dyed","goat","spew","daze","frye","adds","glen","tojo","pixy","gobi","stop","tile","hiss","shed","hahn","baku","ahas","sill","swap","also","carr","manx","lime","debs","moat","eked","bola","pods","coon","lacy","tube","minx","buff","pres","clew","gaff","flee","burn","whom","cola","fret","purl","wick","wigs","donn","guys","toni","oxen","wite","vial","spam","huts","vats","lima","core","eula","thad","peon","erie","oats","boyd","cued","olaf","tams","secs","urey","wile","penn","bred","rill","vary","sues","mail","feds","aves","code","beam","reed","neil","hark","pols","gris","gods","mesa","test","coup","heed","dora","hied","tune","doze","pews","oaks","bloc","tips","maid","goof","four","woof","silo","bray","zest","kiss","yong","file","hilt","iris","tuns","lily","ears","pant","jury","taft","data","gild","pick","kook","colt","bohr","anal","asps","babe","bach","mash","biko","bowl","huey","jilt","goes","guff","bend","nike","tami","gosh","tike","gees","urge","path","bony","jude","lynn","lois","teas","dunn","elul","bonn","moms","bugs","slay","yeah","loan","hulk","lows","damn","nell","jung","avis","mane","waco","loin","knob","tyke","anna","hire","luau","tidy","nuns","pots","quid","exec","hans","hera","hush","shag","scot","moan","wald","ursa","lorn","hunk","loft","yore","alum","mows","slog","emma","spud","rice","worn","erma","need","bags","lark","kirk","pooh","dyes","area","dime","luvs","foch","refs","cast","alit","tugs","even","role","toed","caph","nigh","sony","bide","robs","folk","daft","past","blue","flaw","sana","fits","barr","riot","dots","lamp","cock","fibs","harp","tent","hate","mali","togs","gear","tues","bass","pros","numb","emus","hare","fate","wife","mean","pink","dune","ares","dine","oily","tony","czar","spay","push","glum","till","moth","glue","dive","scad","pops","woks","andy","leah","cusp","hair","alex","vibe","bulb","boll","firm","joys","tara","cole","levy","owen","chow","rump","jail","lapp","beet","slap","kith","more","maps","bond","hick","opus","rust","wist","shat","phil","snow","lott","lora","cary","mote","rift","oust","klee","goad","pith","heep","lupe","ivan","mimi","bald","fuse","cuts","lens","leer","eyry","know","razz","tare","pals","geek","greg","teen","clef","wags","weal","each","haft","nova","waif","rate","katy","yale","dale","leas","axum","quiz","pawn","fend","capt","laws","city","chad","coal","nail","zaps","sort","loci","less","spur","note","foes","fags","gulp","snap","bogs","wrap","dane","melt","ease","felt","shea","calm","star","swam","aery","year","plan","odin","curd","mira","mops","shit","davy","apes","inky","hues","lome","bits","vila","show","best","mice","gins","next","roan","ymir","mars","oman","wild","heal","plus","erin","rave","robe","fast","hutu","aver","jodi","alms","yams","zero","revs","wean","chic","self","jeep","jobs","waxy","duel","seek","spot","raps","pimp","adan","slam","tool","morn","futz","ewes","errs","knit","rung","kans","muff","huhs","tows","lest","meal","azov","gnus","agar","sips","sway","otis","tone","tate","epic","trio","tics","fade","lear","owns","robt","weds","five","lyon","terr","arno","mama","grey","disk","sept","sire","bart","saps","whoa","turk","stow","pyle","joni","zinc","negs","task","leif","ribs","malt","nine","bunt","grin","dona","nope","hams","some","molt","smit","sacs","joan","slav","lady","base","heck","list","take","herd","will","nubs","burg","hugs","peru","coif","zoos","nick","idol","levi","grub","roth","adam","elma","tags","tote","yaws","cali","mete","lula","cubs","prim","luna","jolt","span","pita","dodo","puss","deer","term","dolt","goon","gary","yarn","aims","just","rena","tine","cyst","meld","loki","wong","were","hung","maze","arid","cars","wolf","marx","faye","eave","raga","flow","neal","lone","anne","cage","tied","tilt","soto","opel","date","buns","dorm","kane","akin","ewer","drab","thai","jeer","grad","berm","rods","saki","grus","vast","late","lint","mule","risk","labs","snit","gala","find","spin","ired","slot","oafs","lies","mews","wino","milk","bout","onus","tram","jaws","peas","cleo","seat","gums","cold","vang","dewy","hood","rush","mack","yuan","odes","boos","jami","mare","plot","swab","borg","hays","form","mesh","mani","fife","good","gram","lion","myna","moor","skin","posh","burr","rime","done","ruts","pays","stem","ting","arty","slag","iron","ayes","stub","oral","gets","chid","yens","snub","ages","wide","bail","verb","lamb","bomb","army","yoke","gels","tits","bork","mils","nary","barn","hype","odom","avon","hewn","rios","cams","tact","boss","oleo","duke","eris","gwen","elms","deon","sims","quit","nest","font","dues","yeas","zeta","bevy","gent","torn","cups","worm","baum","axon","purr","vise","grew","govs","meat","chef","rest","lame"]
+    ladders = sol.findLadders(beginWord, endWord, wordList)
+    print(ladders)
