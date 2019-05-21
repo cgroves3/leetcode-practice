@@ -1,43 +1,31 @@
 class Graph:
-    def __init__(self, startWord, endWord, wordList):
-        self.graph = self.genGraphDic(startWord, endWord, wordList)
-    
-    def isEmpty(self):
-        return len(self.graph.keys()) == 0
-
-    def genGraphDic(self, startWord, endWord, wordList):
-        if not(endWord in wordList):
-            return {}
-        
-        if len(self.getConnectedWords(startWord, wordList)) == 0:
-            return {}
-        
-        graph = { startWord : self.getConnectedWords(startWord,wordList) }
-        for word in wordList:
-            if not(word in graph.keys()):
-                wL_cpy = list(wordList)
-                wL_cpy.remove(word)
-                graph[word] = self.getConnectedWords(word, wL_cpy)
-        return graph
+    def __init__(self, nodes):
+        self._nodes = nodes
 
     def getEdgeWeight(self, node1, node2):
-        nodeTup = self.graph.get(node1, '')
-        if not nodeTup == '':
-            return nodeTup.get(node2, 0)
-        return 0
+        if node1 == node2 or node1 == '':
+            return 0
+
+        count = self._getWordDifferenceCount(node1, node2)
+        if count > 1:
+            return None
+        else:
+            return count
+
+    def nodes(self):
+        return self._nodes
 
     def getNeighbors(self, node):
-        neighborDic = self.graph.get(node, '')
-        return neighborDic.keys()
+        return self._getConnectedWords(node, self._nodes)
     
-    def getConnectedWords(self, word, wordList):
+    def _getConnectedWords(self, word, wordList):
         words = {}
         for w in wordList:
-            if self.getWordDifferenceCount(w, word) == 1:
+            if self._getWordDifferenceCount(w, word) == 1:
                 words[w] = 1
         return words
     
-    def getWordDifferenceCount(self, firstWord, secondWord):
+    def _getWordDifferenceCount(self, firstWord, secondWord):
         letter_diff_count = 0
         for i in range(len(secondWord)):
             if not(secondWord[i] == firstWord[i]):
