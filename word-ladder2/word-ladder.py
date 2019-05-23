@@ -1,5 +1,5 @@
 import heapq
-import time
+# import time
 # from path import Path
 # from graph import Graph
 
@@ -59,6 +59,7 @@ class ContinuityError(Exception):
 
 class Graph:
     def __init__(self, nodes):
+        self._charDifferenceLimit = 1
         self._nodes = nodes
 
     def getEdgeWeight(self, node1, node2):
@@ -76,7 +77,7 @@ class Graph:
 
     def getNeighbors(self, node):
         return self._getConnectedWords(node, self._nodes)
-
+    
     def _getConnectedWords(self, word, wordList):
         words = {}
         for w in wordList:
@@ -89,6 +90,8 @@ class Graph:
         for i in range(len(secondWord)):
             if not(secondWord[i] == firstWord[i]):
                 letter_diff_count += 1
+            if letter_diff_count > self._charDifferenceLimit:
+                return letter_diff_count
         return letter_diff_count
 
 def runDijkstra(graph, startingWord, endWord):
@@ -139,12 +142,12 @@ def runBiDijkstra(graph, startingWord, endWord):
     if graph is None or not endWord in graph.nodes():
         return []
 
-    startGoalExplored = {}
+    startGoalExplored = []
     startGoalFrontier = [(0, startingWord)]
     startGoalPath = Path()
     startGoalPaths = {startingWord: [startGoalPath]}
 
-    goalStartExplored = {}
+    goalStartExplored = []
     goalStartFrontier = [(0, endWord)]
     goalStartPath = Path()
     goalStartPaths = {endWord: [goalStartPath]}
@@ -163,7 +166,7 @@ def runBiDijkstra(graph, startingWord, endWord):
 
 
         addNodeToPaths(startGoalPaths.get(startGoalNode, []), graph, startGoalNode)
-        startGoalExplored[startGoalNode] = True
+        startGoalExplored.append(startGoalNode)
 
         if startGoalNode in goalStartExplored:
             pathsStartGoal = getMinPaths(startGoalPaths, goalStartPaths, startGoalNode)
@@ -175,7 +178,7 @@ def runBiDijkstra(graph, startingWord, endWord):
             return paths
         
         addNodeToPaths(goalStartPaths.get(goalStartNode, []), graph, goalStartNode)
-        goalStartExplored[goalStartNode] = True
+        goalStartExplored.append(goalStartNode)
 
         if goalStartNode in startGoalExplored:
             pathsGoalStart = getMinPaths(goalStartPaths, startGoalPaths, goalStartNode)
@@ -191,11 +194,11 @@ def runBiDijkstra(graph, startingWord, endWord):
             return paths
 
         startGoalNeighbors = graph.getNeighbors(startGoalNode)
-        unexploredNeighbors = [neighbor for neighbor in startGoalNeighbors if not(startGoalExplored.get(neighbor, False))]
+        unexploredNeighbors = [neighbor for neighbor in startGoalNeighbors if not(neighbor in startGoalExplored)]
         addNeighbors(graph, unexploredNeighbors, startGoalFrontier, startGoalPaths, startGoalNode)
 
         goalStartNeighbors = graph.getNeighbors(goalStartNode)
-        unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(goalStartExplored.get(neighbor, False))]
+        unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(neighbor in goalStartExplored)]
         addNeighbors(graph, unexploredNeighbors, goalStartFrontier, goalStartPaths, goalStartNode)
 
 def getNodes(paths):
@@ -308,9 +311,9 @@ def listify(heapList):
 class Solution(object):
     def findLadders(self, beginWord, endWord, wordList):
         graph = Graph(wordList)
-        start = time.time()
+        # start = time.time()
         paths = runBiDijkstra(graph, beginWord, endWord)
-        print("Bidirectional Dijkstra: ", time.time() - start)
+        # print("Bidirectional Dijkstra: ", time.time() - start)
 
         # start = time.time()
         # paths = runDijkstra(graph, beginWord, endWord)
@@ -331,54 +334,54 @@ def are_equal(list1, list2):
 if __name__ == "__main__":
     sol = Solution()
 
-    beginWord = "hit"
-    endWord = "cog"
-    wordList = ["hot","dot","dog","lot","log","cog"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [["hit","hot","dot","dog","cog"],["hit","hot","lot","log","cog"]]
-    assert(are_equal(expected, ladders))
+    # beginWord = "hit"
+    # endWord = "cog"
+    # wordList = ["hot","dot","dog","lot","log","cog"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["hit","hot","dot","dog","cog"],["hit","hot","lot","log","cog"]]
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "hit"
-    endWord = "cog"
-    wordList = ["hot","dot","dog","lot","log"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = []
-    assert(are_equal(expected, ladders))
+    # beginWord = "hit"
+    # endWord = "cog"
+    # wordList = ["hot","dot","dog","lot","log"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = []
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "red"
-    endWord = "tax"
-    wordList = ["ted","tex","red","tax","tad","den","rex","pee"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [["red","ted","tad","tax"],["red","ted","tex","tax"],["red","rex","tex","tax"]]
-    assert(are_equal(expected, ladders))
+    # beginWord = "red"
+    # endWord = "tax"
+    # wordList = ["ted","tex","red","tax","tad","den","rex","pee"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["red","ted","tad","tax"],["red","ted","tex","tax"],["red","rex","tex","tax"]]
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "qa"
-    endWord = "sq"
-    wordList = ["si","go","se","cm","so","ph","mt","db","mb","sb","kr","ln","tm","le","av","sm","ar","ci","ca","br","ti","ba","to","ra","fa","yo","ow","sn","ya","cr","po","fe","ho","ma","re","or","rn","au","ur","rh","sr","tc","lt","lo","as","fr","nb","yb","if","pb","ge","th","pm","rb","sh","co","ga","li","ha","hz","no","bi","di","hi","qa","pi","os","uh","wm","an","me","mo","na","la","st","er","sc","ne","mn","mi","am","ex","pt","io","be","fm","ta","tb","ni","mr","pa","he","lr","sq","ye"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [['qa', 'ba', 'be', 'se', 'sq'], ['qa', 'ba', 'bi', 'si', 'sq'], ['qa', 'ba', 'br', 'sr', 'sq'], ['qa', 'ca', 'ci', 'si', 'sq'], ['qa', 'ca', 'cm', 'sm', 'sq'], ['qa', 'ca', 'co', 'so', 'sq'], ['qa', 'ca', 'cr', 'sr', 'sq'], ['qa', 'fa', 'fe', 'se', 'sq'], ['qa', 'fa', 'fm', 'sm', 'sq'], ['qa', 'fa', 'fr', 'sr', 'sq'], ['qa', 'ga', 'ge', 'se', 'sq'], ['qa', 'ga', 'go', 'so', 'sq'], ['qa', 'ha', 'he', 'se', 'sq'], ['qa', 'ha', 'hi', 'si', 'sq'], ['qa', 'ha', 'ho', 'so', 'sq'], ['qa', 'la', 'le', 'se', 'sq'], ['qa', 'la', 'li', 'si', 'sq'], ['qa', 'la', 'ln', 'sn', 'sq'], ['qa', 'la', 'lo', 'so', 'sq'], ['qa', 'la', 'lr', 'sr', 'sq'], ['qa', 'la', 'lt', 'st', 'sq'], ['qa', 'ma', 'mb', 'sb', 'sq'], ['qa', 'ma', 'me', 'se', 'sq'], ['qa', 'ma', 'mi', 'si', 'sq'], ['qa', 'ma', 'mn', 'sn', 'sq'], ['qa', 'ma', 'mo', 'so', 'sq'], ['qa', 'ma', 'mr', 'sr', 'sq'], ['qa', 'ma', 'mt', 'st', 'sq'], ['qa', 'na', 'nb', 'sb', 'sq'], ['qa', 'na', 'ne', 'se', 'sq'], ['qa', 'na', 'ni', 'si', 'sq'], ['qa', 'na', 'no', 'so', 'sq'], ['qa', 'pa', 'pb', 'sb', 'sq'], ['qa', 'pa', 'ph', 'sh', 'sq'], ['qa', 'pa', 'pi', 'si', 'sq'], ['qa', 'pa', 'pm', 'sm', 'sq'], ['qa', 'pa', 'po', 'so', 'sq'], ['qa', 'pa', 'pt', 'st', 'sq'], ['qa', 'ra', 'rb', 'sb', 'sq'], ['qa', 'ra', 're', 'se', 'sq'], ['qa', 'ra', 'rh', 'sh', 'sq'], ['qa', 'ra', 'rn', 'sn', 'sq'], ['qa', 'ta', 'tb', 'sb', 'sq'], ['qa', 'ta', 'tc', 'sc', 'sq'], ['qa', 'ta', 'th', 'sh', 'sq'], ['qa', 'ta', 'ti', 'si', 'sq'], ['qa', 'ta', 'tm', 'sm', 'sq'], ['qa', 'ta', 'to', 'so', 'sq'], ['qa', 'ya', 'yb', 'sb', 'sq'], ['qa', 'ya', 'ye', 'se', 'sq'], ['qa', 'ya', 'yo', 'so', 'sq']]
-    assert(are_equal(expected, ladders))
+    # beginWord = "qa"
+    # endWord = "sq"
+    # wordList = ["si","go","se","cm","so","ph","mt","db","mb","sb","kr","ln","tm","le","av","sm","ar","ci","ca","br","ti","ba","to","ra","fa","yo","ow","sn","ya","cr","po","fe","ho","ma","re","or","rn","au","ur","rh","sr","tc","lt","lo","as","fr","nb","yb","if","pb","ge","th","pm","rb","sh","co","ga","li","ha","hz","no","bi","di","hi","qa","pi","os","uh","wm","an","me","mo","na","la","st","er","sc","ne","mn","mi","am","ex","pt","io","be","fm","ta","tb","ni","mr","pa","he","lr","sq","ye"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [['qa', 'ba', 'be', 'se', 'sq'], ['qa', 'ba', 'bi', 'si', 'sq'], ['qa', 'ba', 'br', 'sr', 'sq'], ['qa', 'ca', 'ci', 'si', 'sq'], ['qa', 'ca', 'cm', 'sm', 'sq'], ['qa', 'ca', 'co', 'so', 'sq'], ['qa', 'ca', 'cr', 'sr', 'sq'], ['qa', 'fa', 'fe', 'se', 'sq'], ['qa', 'fa', 'fm', 'sm', 'sq'], ['qa', 'fa', 'fr', 'sr', 'sq'], ['qa', 'ga', 'ge', 'se', 'sq'], ['qa', 'ga', 'go', 'so', 'sq'], ['qa', 'ha', 'he', 'se', 'sq'], ['qa', 'ha', 'hi', 'si', 'sq'], ['qa', 'ha', 'ho', 'so', 'sq'], ['qa', 'la', 'le', 'se', 'sq'], ['qa', 'la', 'li', 'si', 'sq'], ['qa', 'la', 'ln', 'sn', 'sq'], ['qa', 'la', 'lo', 'so', 'sq'], ['qa', 'la', 'lr', 'sr', 'sq'], ['qa', 'la', 'lt', 'st', 'sq'], ['qa', 'ma', 'mb', 'sb', 'sq'], ['qa', 'ma', 'me', 'se', 'sq'], ['qa', 'ma', 'mi', 'si', 'sq'], ['qa', 'ma', 'mn', 'sn', 'sq'], ['qa', 'ma', 'mo', 'so', 'sq'], ['qa', 'ma', 'mr', 'sr', 'sq'], ['qa', 'ma', 'mt', 'st', 'sq'], ['qa', 'na', 'nb', 'sb', 'sq'], ['qa', 'na', 'ne', 'se', 'sq'], ['qa', 'na', 'ni', 'si', 'sq'], ['qa', 'na', 'no', 'so', 'sq'], ['qa', 'pa', 'pb', 'sb', 'sq'], ['qa', 'pa', 'ph', 'sh', 'sq'], ['qa', 'pa', 'pi', 'si', 'sq'], ['qa', 'pa', 'pm', 'sm', 'sq'], ['qa', 'pa', 'po', 'so', 'sq'], ['qa', 'pa', 'pt', 'st', 'sq'], ['qa', 'ra', 'rb', 'sb', 'sq'], ['qa', 'ra', 're', 'se', 'sq'], ['qa', 'ra', 'rh', 'sh', 'sq'], ['qa', 'ra', 'rn', 'sn', 'sq'], ['qa', 'ta', 'tb', 'sb', 'sq'], ['qa', 'ta', 'tc', 'sc', 'sq'], ['qa', 'ta', 'th', 'sh', 'sq'], ['qa', 'ta', 'ti', 'si', 'sq'], ['qa', 'ta', 'tm', 'sm', 'sq'], ['qa', 'ta', 'to', 'so', 'sq'], ['qa', 'ya', 'yb', 'sb', 'sq'], ['qa', 'ya', 'ye', 'se', 'sq'], ['qa', 'ya', 'yo', 'so', 'sq']]
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "hot"
-    endWord = "dog"
-    wordList = ["hot","dog","dot"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [["hot", "dot", "dog"]]
-    assert(are_equal(expected, ladders))
+    # beginWord = "hot"
+    # endWord = "dog"
+    # wordList = ["hot","dog","dot"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [["hot", "dot", "dog"]]
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "leet"
-    endWord = "code"
-    wordList = ["lest","leet","lose","code","lode","robe","lost"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [['leet', 'lest', 'lost', 'lose', 'lode', 'code']]
-    assert(are_equal(expected, ladders))
+    # beginWord = "leet"
+    # endWord = "code"
+    # wordList = ["lest","leet","lose","code","lode","robe","lost"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [['leet', 'lest', 'lost', 'lose', 'lode', 'code']]
+    # assert(are_equal(expected, ladders))
 
-    beginWord = "a"
-    endWord = "c"
-    wordList = ["a","b","c"]
-    ladders = sol.findLadders(beginWord, endWord, wordList)
-    expected = [['a','c']]
-    assert(are_equal(expected, ladders))
+    # beginWord = "a"
+    # endWord = "c"
+    # wordList = ["a","b","c"]
+    # ladders = sol.findLadders(beginWord, endWord, wordList)
+    # expected = [['a','c']]
+    # assert(are_equal(expected, ladders))
 
     beginWord = "nanny"
     endWord = "aloud"
