@@ -1,5 +1,5 @@
 import heapq
-# import time
+import time
 # from path import Path
 # from graph import Graph
 
@@ -240,8 +240,7 @@ def addNeighbors(graph, neighbors, frontier, paths, node):
     del paths[node]
 
 def intersect(list1, list2):
-    intersection = set(list1).intersection(set(list2))
-    return list(intersection)
+    return set(list1).intersection(set(list2))
 
 def mergePathsWithFrontier(graph, paths1, paths2, minPathCost):
     paths = []
@@ -311,9 +310,9 @@ def listify(heapList):
 class Solution(object):
     def findLadders(self, beginWord, endWord, wordList):
         graph = Graph(wordList)
-        # start = time.time()
+        start = time.time()
         paths = runBiDijkstra(graph, beginWord, endWord)
-        # print("Bidirectional Dijkstra: ", time.time() - start)
+        print("Bidirectional Dijkstra: ", time.time() - start)
 
         # start = time.time()
         # paths = runDijkstra(graph, beginWord, endWord)
