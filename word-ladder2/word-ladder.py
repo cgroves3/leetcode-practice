@@ -139,12 +139,12 @@ def runBiDijkstra(graph, startingWord, endWord):
     if graph is None or not endWord in graph.nodes():
         return []
 
-    startGoalExplored = {}
+    startGoalExplored = dict.fromkeys(graph.nodes(), False)
     startGoalFrontier = [(0, startingWord)]
     startGoalPath = Path()
     startGoalPaths = {startingWord: [startGoalPath]}
 
-    goalStartExplored = {}
+    goalStartExplored = dict(startGoalExplored)
     goalStartFrontier = [(0, endWord)]
     goalStartPath = Path()
     goalStartPaths = {endWord: [goalStartPath]}
@@ -165,7 +165,7 @@ def runBiDijkstra(graph, startingWord, endWord):
         addNodeToPaths(startGoalPaths.get(startGoalNode, []), graph, startGoalNode)
         startGoalExplored[startGoalNode] = True
 
-        if startGoalNode in goalStartExplored:
+        if goalStartExplored[startGoalNode]:
             pathsStartGoal = getMinPaths(startGoalPaths, goalStartPaths, startGoalNode)
             if len(pathsStartGoal) > 0:
                 min_cost = pathsStartGoal[0].cost()
@@ -177,7 +177,7 @@ def runBiDijkstra(graph, startingWord, endWord):
         addNodeToPaths(goalStartPaths.get(goalStartNode, []), graph, goalStartNode)
         goalStartExplored[goalStartNode] = True
 
-        if goalStartNode in startGoalExplored:
+        if startGoalExplored[goalStartNode]:
             pathsGoalStart = getMinPaths(goalStartPaths, startGoalPaths, goalStartNode)
             for path in pathsGoalStart:
                 path.reverse()
@@ -238,7 +238,7 @@ def addNeighbors(graph, neighbors, frontier, paths, node):
 
 def intersect(list1, list2):
     intersection = set(list1).intersection(set(list2))
-    return list(intersection)
+    return intersection
 
 def mergePathsWithFrontier(graph, paths1, paths2, minPathCost):
     paths = []
