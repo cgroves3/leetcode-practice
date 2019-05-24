@@ -79,10 +79,10 @@ class Graph:
         return self._getConnectedWords(node, self._nodes)
     
     def _getConnectedWords(self, word, wordList):
-        words = {}
+        words = []
         for w in wordList:
             if self._getWordDifferenceCount(w, word) == 1:
-                words[w] = 1
+                words.append(w)
         return words
     
     def _getWordDifferenceCount(self, firstWord, secondWord):
