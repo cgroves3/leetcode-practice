@@ -59,6 +59,7 @@ class ContinuityError(Exception):
 
 class Graph:
     def __init__(self, nodes):
+        self._charDifferenceLimit = 1
         self._nodes = nodes
 
     def getEdgeWeight(self, node1, node2):
@@ -76,12 +77,12 @@ class Graph:
 
     def getNeighbors(self, node):
         return self._getConnectedWords(node, self._nodes)
-
+    
     def _getConnectedWords(self, word, wordList):
-        words = {}
+        words = []
         for w in wordList:
             if self._getWordDifferenceCount(w, word) == 1:
-                words[w] = 1
+                words.append(w)
         return words
     
     def _getWordDifferenceCount(self, firstWord, secondWord):
@@ -89,6 +90,8 @@ class Graph:
         for i in range(len(secondWord)):
             if not(secondWord[i] == firstWord[i]):
                 letter_diff_count += 1
+            if letter_diff_count > self._charDifferenceLimit:
+                return letter_diff_count
         return letter_diff_count
 
 def runDijkstra(graph, startingWord, endWord):
@@ -140,6 +143,7 @@ def runBiDijkstra(graph, startingWord, endWord):
         return []
 
     startGoalExplored = dict.fromkeys(graph.nodes(), False)
+    startGoalExplored[startingWord] = False
     startGoalFrontier = [(0, startingWord)]
     startGoalPath = Path()
     startGoalPaths = {startingWord: [startGoalPath]}
@@ -191,11 +195,11 @@ def runBiDijkstra(graph, startingWord, endWord):
             return paths
 
         startGoalNeighbors = graph.getNeighbors(startGoalNode)
-        unexploredNeighbors = [neighbor for neighbor in startGoalNeighbors if not(startGoalExplored.get(neighbor, False))]
+        unexploredNeighbors = [neighbor for neighbor in startGoalNeighbors if not(startGoalExplored[neighbor])]
         addNeighbors(graph, unexploredNeighbors, startGoalFrontier, startGoalPaths, startGoalNode)
 
         goalStartNeighbors = graph.getNeighbors(goalStartNode)
-        unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(goalStartExplored.get(neighbor, False))]
+        unexploredNeighbors = [neighbor for neighbor in goalStartNeighbors if not(goalStartExplored[neighbor])]
         addNeighbors(graph, unexploredNeighbors, goalStartFrontier, goalStartPaths, goalStartNode)
 
 def getNodes(paths):
@@ -220,10 +224,7 @@ def addNeighbors(graph, neighbors, frontier, paths, node):
     frontierList = listify(frontier)
     for neighbor in neighbors:
         if not(neighbor in frontierList):
-            pathsListCpy = []
-            for path in pathList:
-                pathsListCpy.append(path.copy())
-            paths[neighbor] = pathsListCpy
+            paths[neighbor] = [path.copy() for path in pathList]
             heapq.heappush(frontier, (firstPath.cost() + graph.getEdgeWeight(node, neighbor), neighbor))
         else:           
             # Append paths to path list if the cost is equal to current total cost
@@ -233,7 +234,6 @@ def addNeighbors(graph, neighbors, frontier, paths, node):
                 if firstNeighborPath.cost() + graph.getEdgeWeight(firstNeighborPath.getLastNode(), neighbor) == firstPath.cost() + graph.getEdgeWeight(node, neighbor):
                     for pL in pathList:
                         neighborPathList.append(pL.copy())
-
     del paths[node]
 
 def intersect(list1, list2):

@@ -1,5 +1,6 @@
 class Graph:
     def __init__(self, nodes):
+        self._charDifferenceLimit = 1
         self._nodes = nodes
 
     def getEdgeWeight(self, node1, node2):
@@ -19,10 +20,10 @@ class Graph:
         return self._getConnectedWords(node, self._nodes)
     
     def _getConnectedWords(self, word, wordList):
-        words = {}
+        words = []
         for w in wordList:
             if self._getWordDifferenceCount(w, word) == 1:
-                words[w] = 1
+                words.append(w)
         return words
     
     def _getWordDifferenceCount(self, firstWord, secondWord):
@@ -30,4 +31,6 @@ class Graph:
         for i in range(len(secondWord)):
             if not(secondWord[i] == firstWord[i]):
                 letter_diff_count += 1
+            if letter_diff_count > self._charDifferenceLimit:
+                return letter_diff_count
         return letter_diff_count
