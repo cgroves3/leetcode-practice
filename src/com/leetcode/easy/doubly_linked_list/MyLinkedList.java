@@ -1,3 +1,6 @@
+package com.leetcode.easy.doubly_linked_list;
+import com.data_structures.Node;
+
 public class MyLinkedList {
     private Node head;
     private Node tail;

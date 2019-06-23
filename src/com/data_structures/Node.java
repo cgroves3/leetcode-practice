@@ -1,3 +1,5 @@
+package com.data_structures;
+
 public class Node {
     private Node next;
     private Node prev;

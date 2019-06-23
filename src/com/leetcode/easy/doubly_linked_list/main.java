@@ -1,3 +1,5 @@
+package com.leetcode.easy.doubly_linked_list;
+
 public class main {
     public static void main(String[] args) {
         MyLinkedList list = new MyLinkedList();
