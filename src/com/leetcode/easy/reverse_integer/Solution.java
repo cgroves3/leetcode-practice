@@ -19,7 +19,7 @@ public class Solution {
         if (numIsNegative)
             reverse = -reverse;
 
-        if (reverse > Integer.MAX_VALUE)
+        if (reverse < Integer.MIN_VALUE || reverse > Integer.MAX_VALUE)
             return 0;
 
         return reverse.intValue();
