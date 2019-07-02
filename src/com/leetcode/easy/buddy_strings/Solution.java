@@ -20,38 +20,45 @@ public class Solution {
         int charDiffCount = 0;
         int charDiffLimit = 2;
 
-        boolean hasRepeatingChar = false;
-
-        // Added character counts to maps
-        for (int i = 0; i < A.length(); i++) {
-            Character a_i = A.charAt(i);
-            Character b_i = B.charAt(i);
-
-            if (a_i != b_i) {
-                removeCharacter(a_map, a_i);
-                addCharacter(a_map, b_i);
-                removeCharacter(b_map, b_i);
-                addCharacter(b_map, a_i);
-                charDiffCount++;
-            }
-            else {
+        // If the strings are equal, checking for repeating characters. If there are, return true, if not return false.
+        if (A.equals(B)) {
+            for (int i = 0; i < A.length(); i++) {
+                Character a_i = A.charAt(i);
                 count[a_i - 'a']++;
-                hasRepeatingChar = count[a_i - 'a'] > 1;
+                if (count[a_i - 'a'] > 1) {
+                    return true;
+                }
             }
+            return false;
         }
+        else {
+            // Check that each letter has the same count
+            for (int i = 0; i < A.length(); i++) {
+                Character a_i = A.charAt(i);
+                Character b_i = B.charAt(i);
 
-        // Check if all counts are equal to 0, meaning each letter has the same count
-        Iterator<Map.Entry<Character, Integer>> iterA = a_map.entrySet().iterator();
-        Iterator<Map.Entry<Character, Integer>> iterB = b_map.entrySet().iterator();
-        while (iterA.hasNext() && iterB.hasNext()) {
-            if (iterA.next().getValue() != 0 && iterB.next().getValue() != 0) {
-                return false;
+                if (a_i != b_i) {
+                    removeCharacter(a_map, a_i);
+                    addCharacter(a_map, b_i);
+                    removeCharacter(b_map, b_i);
+                    addCharacter(b_map, a_i);
+                    charDiffCount++;
+                }
             }
+
+            // Check if all counts are equal to 0, meaning each letter has the same count
+            Iterator<Map.Entry<Character, Integer>> iterA = a_map.entrySet().iterator();
+            Iterator<Map.Entry<Character, Integer>> iterB = b_map.entrySet().iterator();
+            while (iterA.hasNext() && iterB.hasNext()) {
+                if (iterA.next().getValue() != 0 && iterB.next().getValue() != 0) {
+                    return false;
+                }
+            }
+
+            // The char difference count should be 2 or 0 meaning one swap or there is at least one repeating char
+            return charDiffCount == charDiffLimit;
+
         }
-
-        // The char difference count should be 2 or 0 meaning one swap or there is at least one repeating char
-        return charDiffCount == charDiffLimit || hasRepeatingChar;
-
     }
 
     private void addCharacter(HashMap<Character, Integer> a_map, Character a_i) {
