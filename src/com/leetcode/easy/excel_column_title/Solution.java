@@ -8,35 +8,35 @@ public class Solution {
         if (n <= 0) {
             return "";
         }
-        List<Integer> digits = new ArrayList<Integer>();
         int number = n;
         int lengthOfAlphabet = 26;
-        int count = 0;
         StringBuilder builder = new StringBuilder();
-        int remainder = number % lengthOfAlphabet;
         if (number > lengthOfAlphabet) {
-            digits.add(count);
-            while ((number / lengthOfAlphabet) > 0) {
-//            number -= lengthOfAlphabet;
-                number = number / lengthOfAlphabet;
-//            Math.log(number) / Math.log(lengthOfAlphabet);
-                digits.set(digits.size() - 1, digits.get(digits.size() - 1) + 1);
-                if (digits.get(digits.size() - 1) > lengthOfAlphabet) {
-                    digits.set(digits.size() - 1, 1);
-                    digits.add(1);
+            int exp = (int)Math.floor(Math.log(number) / Math.log(lengthOfAlphabet));
+            int[] digits = new int[exp+1];
+            int i = 0;
+            while (number > lengthOfAlphabet) {
+                //Compute the smallest integer multiplier of number and 26.
+                int digit = (int)(Math.floor(number / Math.pow(lengthOfAlphabet, exp)));
+                digits[i] = digit;
+                number = (int)(number - digit * Math.pow(lengthOfAlphabet, exp));
+                exp--;
+                i++;
+            }
+            digits[digits.length-1] = number;
+            for (i = 0; i < digits.length; i++) {
+                if (digits[i] == 0 && i > 0) {
+                    digits[i-1] -= 1;
+                    digits[i] = 26;
+                }
+                if (i > 0 && digits[i-1] > 0) {
+                    builder.append((char) ((digits[i-1]) - 1 + 'A'));
                 }
             }
-        }
-        for (int i = digits.size()-1; i >= 0; i--) {
-            if (digits.get(i) > 0)
-                builder.append((char)(digits.get(i) - 1 + 'A'));
-        }
-
-        if (remainder > 0) {
-            builder.append((char) ((remainder) - 1 + 'A'));
+            builder.append((char) ((digits[digits.length-1]) - 1 + 'A'));
         }
         else {
-            builder.append('Z');
+            builder.append((char) ((number) - 1 + 'A'));
         }
         return builder.toString();
     }
