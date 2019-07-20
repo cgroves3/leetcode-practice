@@ -1,33 +1,40 @@
 package com.leetcode.easy.shortest_cont_unsort_subarray;
 
+import java.util.Arrays;
+
 public class Solution {
     public int findUnsortedSubarray(int[] nums) {
-        int firstDrop = -1;
-        int lastDrop = -1;
+        int startInd = -1;
+        int endInd = -1;
 
         int i = 0;
-        int j = nums.length - 1;
+
+
+        int[] nums_copy = nums.clone();
+        Arrays.sort(nums_copy);
 
         //Get the first number less than the previous number.
-        while (i < nums.length - 1 && firstDrop == -1) {
-            if (nums[i + 1] < nums[i]){
-                firstDrop = i;
+        while (i < nums.length - 1 && startInd == -1) {
+            if (nums[i] != nums_copy[i]) {
+                startInd = i;
             }
             i++;
         }
-
-        //Get the last number lass than the previous number.
-        while (j > 0 && lastDrop == -1) {
-            if (nums[j - 1] > nums[j]) {
-                lastDrop = j;
-            }
-            j--;
-        }
-
-        if (firstDrop == -1 || lastDrop == -1)
+        if (i == nums.length)
             return 0;
 
-        int length = lastDrop - firstDrop + 1;
+        i = nums.length - 1;
+        while (i > -1 && endInd == -1) {
+            if (nums[i] != nums_copy[i]) {
+                endInd = i;
+            }
+            i--;
+        }
+
+        if (startInd == -1 || endInd == -1)
+            return 0;
+
+        int length = endInd - startInd + 1;
         return length;
     }
 }
